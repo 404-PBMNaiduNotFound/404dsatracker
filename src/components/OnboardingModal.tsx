@@ -27,9 +27,6 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
   const setCount = (key: keyof DailyCounts, val: number) =>
     setCounts((prev) => ({ ...prev, [key]: val }));
 
-  const estMinutes = counts.easy * 15 + counts.medium * 30 + counts.hard * 45;
-  const estHours = (estMinutes / 60).toFixed(1);
-
   const handleFinish = async () => {
     setBusy(true);
     try {
@@ -212,8 +209,8 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
               <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 space-y-1">
                 <p className="text-sm font-medium">Your plan summary</p>
                 <p className="text-xs text-muted-foreground">📅 Starting: {new Date(`${startDate}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}</p>
-                <p className="text-xs text-muted-foreground">⚡ Daily pace: {counts.easy}E · {counts.medium}M · {counts.hard}H problems</p>
-                <p className="text-xs text-muted-foreground">⏱ Est. ~{estHours} hrs/day study</p>
+                <p className="text-xs text-muted-foreground">⚡ Daily pace limits: {counts.easy} Easy · {counts.medium} Medium · {counts.hard} Hard</p>
+                <p className="text-xs text-muted-foreground">⏱ Dynamic study time: ~{Math.min(counts.easy * 15, counts.medium * 30, counts.hard * 45)} – {Math.max(counts.easy * 15, counts.medium * 30, counts.hard * 45)} min/day</p>
               </div>
 
               <div className="flex gap-2">
@@ -246,7 +243,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                 <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
                   <Sliders className="size-4 text-primary shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Daily Problems</p>
+                    <p className="text-xs text-muted-foreground">Daily Pace Limits</p>
                     <p className="text-sm font-semibold">
                       {counts.easy} Easy · {counts.medium} Medium · {counts.hard} Hard
                     </p>
@@ -256,7 +253,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                   <span className="text-lg">⏱</span>
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Daily Study Time</p>
-                    <p className="text-sm font-semibold">~{estMinutes} minutes ({estHours} hrs)</p>
+                    <p className="text-sm font-semibold">~{Math.min(counts.easy * 15, counts.medium * 30, counts.hard * 45)} to {Math.max(counts.easy * 15, counts.medium * 30, counts.hard * 45)} min / day</p>
                   </div>
                 </div>
               </div>
