@@ -12,7 +12,8 @@ import {
 import { db as firestore, auth } from "@/integrations/firebase/client";
 import type { Day } from "./types";
 import { SCHEMA_VERSION } from "./types";
-import { seedDays, START_DATE } from "./plan";
+import { DEFAULT_DAILY_COUNTS, type DailyCounts, rebalanceRemaining, seedDays, START_DATE } from "./plan";
+import { loadSettings } from "./settings";
 
 // ---- Firestore layout (mirrors the old Postgres tables) ----
 // users/{uid}                          <- profile doc (was `profiles`)
@@ -225,26 +226,27 @@ export async function loadPlan(userId: string): Promise<{ days: Day[]; meta: Pla
   await ensureProfile(userId);
 
   const metaSnap = await getDoc(planMetaDoc(userId));
-  if (!metaSnap.exists()) return seedPlan(userId);
+  if (!metaSnap.exists()) {
+    const s = await loadSettings(userId);
+    return seedPlan(userId, undefined, s?.counts);
+  }
 
   // Order by seqIndex — the stable array-position field written by saveSequence.
   // This guarantees the correct order even after skips reassign dayNumbers.
   // Fall back to dayNumber for legacy documents that predate seqIndex.
   const daysSnap = await getDocs(query(daysCol(userId), orderBy("seqIndex", "asc")));
-  if (daysSnap.empty) return seedPlan(userId);
+  if (daysSnap.empty) {
+    const s = await loadSettings(userId);
+    return seedPlan(userId, undefined, s?.counts);
+  }
 
   const metaData = metaSnap.data();
 
-  // Auto-migrate: whenever the master problem database (master-problems.ts /
-  // practice-problems.ts) changes and SCHEMA_VERSION is bumped, every user's
-  // stored plan is behind. Reseed it from the current data automatically so
-  // stale/removed problems never keep showing, for any user, without a
-  // manual migration step. This replaces the old plan's days (and their
-  // embedded problems) in Firestore; the master problem catalog itself is
-  // never stored in Firestore — only this per-user progress snapshot is.
+  // Auto-migrate: whenever the master problem database changes, reseed plan with user's saved counts
   const storedSchemaVersion = (metaData.schemaVersion as number | undefined) ?? 0;
   if (storedSchemaVersion !== SCHEMA_VERSION) {
-    return seedPlan(userId, metaData.startDate as string);
+    const s = await loadSettings(userId);
+    return seedPlan(userId, metaData.startDate as string, s?.counts);
   }
 
   return {
@@ -258,13 +260,29 @@ export async function loadPlan(userId: string): Promise<{ days: Day[]; meta: Pla
 }
 
 
-export async function seedPlan(userId: string, startDate?: string): Promise<{ days: Day[]; meta: PlanMeta }> {
+export async function seedPlan(userId: string, startDate?: string, counts?: DailyCounts): Promise<{ days: Day[]; meta: PlanMeta }> {
   await ensureProfile(userId);
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const effectiveStartDate = startDate || today;
 
-  const days = seedDays(effectiveStartDate);
+  let days = seedDays(effectiveStartDate);
+  
+  // Read user saved counts from settings if counts is omitted
+  let effectiveCounts = counts;
+  if (!effectiveCounts) {
+    try {
+      const s = await loadSettings(userId);
+      if (s?.counts) effectiveCounts = s.counts;
+    } catch {
+      // fallback
+    }
+  }
+  if (!effectiveCounts) effectiveCounts = DEFAULT_DAILY_COUNTS;
+
+  // Rebalance initial days according to user daily pace limits so day 1 gets full quota (e.g. 5 Easy)
+  days = rebalanceRemaining(days, effectiveCounts, effectiveStartDate);
+
   await deleteAllDays(userId);
   await writeAllDays(userId, days);
 
@@ -334,17 +352,64 @@ export async function listEvents(userId: string) {
  * functions/src/index.ts and MIGRATION_NOTES.md.
  */
 export async function deleteAccountData(userId: string) {
+  // 1. Delete all days documents
   await deleteAllDays(userId);
 
-  const eventsSnap = await getDocs(revisionEventsCol(userId));
-  for (let i = 0; i < eventsSnap.docs.length; i += BATCH_SIZE) {
-    const b = writeBatch(firestore);
-    eventsSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => b.delete(d.ref));
-    await b.commit();
+  // 2. Delete all revision events
+  try {
+    const eventsSnap = await getDocs(revisionEventsCol(userId));
+    for (let i = 0; i < eventsSnap.docs.length; i += BATCH_SIZE) {
+      const b = writeBatch(firestore);
+      eventsSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => b.delete(d.ref));
+      await b.commit();
+    }
+  } catch (e) {
+    console.warn("Error deleting revision events:", e);
   }
 
+  // 3. Delete all push subscriptions
+  try {
+    const pushSnap = await getDocs(pushSubscriptionsCol(userId));
+    for (let i = 0; i < pushSnap.docs.length; i += BATCH_SIZE) {
+      const b = writeBatch(firestore);
+      pushSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => b.delete(d.ref));
+      await b.commit();
+    }
+  } catch (e) {
+    console.warn("Error deleting push subscriptions:", e);
+  }
+
+  // 4. Delete all topic reminders
+  try {
+    const remindersRef = collection(firestore, "users", userId, "reminders");
+    const remSnap = await getDocs(remindersRef);
+    for (let i = 0; i < remSnap.docs.length; i += BATCH_SIZE) {
+      const b = writeBatch(firestore);
+      remSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => b.delete(d.ref));
+      await b.commit();
+    }
+  } catch (e) {
+    console.warn("Error deleting topic reminders:", e);
+  }
+
+  // 5. Delete all achievement docs
+  try {
+    const achRef = collection(firestore, "users", userId, "achievements");
+    const achSnap = await getDocs(achRef);
+    for (let i = 0; i < achSnap.docs.length; i += BATCH_SIZE) {
+      const b = writeBatch(firestore);
+      achSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => b.delete(d.ref));
+      await b.commit();
+    }
+  } catch (e) {
+    console.warn("Error deleting achievements:", e);
+  }
+
+  // 6. Delete meta/plan, settings/prefs, settings/problemCompletions, and userDoc
   const batch = writeBatch(firestore);
   batch.delete(planMetaDoc(userId));
+  batch.delete(settingsDoc(userId));
+  batch.delete(problemCompletionsDoc(userId));
   batch.delete(userDoc(userId));
   await batch.commit();
 }

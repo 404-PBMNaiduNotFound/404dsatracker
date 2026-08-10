@@ -85,8 +85,8 @@ function PlanBoundary({
     // Save their chosen settings first
     await updateSettings({ counts })
     await saveSettings(userId, { counts })
-    // Seed the plan with their chosen start date
-    await seedPlan(userId, startDate)
+    // Seed the plan with their chosen start date and pace counts
+    await seedPlan(userId, startDate, counts)
     // Show the app
     setShowOnboarding(false)
     setPlanReady(true)

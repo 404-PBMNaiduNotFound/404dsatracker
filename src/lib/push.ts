@@ -104,26 +104,28 @@ export async function showLocalReminder(title: string, body: string) {
   if (!pushSupported()) return;
   if (Notification.permission !== "granted") return;
 
-  // 1. Try plain Notification first (best for foreground tabs on Desktop)
+  // 1. Try Service Worker showNotification first (works across Desktop, Android, PWA)
   try {
-    new Notification(title, { body, icon: "/favicon.ico", tag: "dsa-reminder" });
-    // If it didn't throw, we're good.
-    return;
-  } catch (e) {
-    // Usually throws on mobile (Android Chrome requires ServiceWorker for notifications)
-  }
-
-  // 2. Fallback to ServiceWorker-based notification
-  try {
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (reg) {
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      reg = (await registerReminderWorker()) || undefined;
+    }
+    if (reg && reg.showNotification) {
       await reg.showNotification(title, {
         body,
-        icon: "/favicon.ico",
-        badge: "/favicon.ico",
-        tag: "dsa-reminder",
+        icon: "/icon.jpg",
+        badge: "/icon.jpg",
+        tag: `dsa-reminder-${Date.now()}`,
       });
+      return;
     }
+  } catch (e) {
+    console.warn("[push] SW notification failed, falling back to window.Notification:", e);
+  }
+
+  // 2. Fallback to plain Notification API
+  try {
+    new Notification(title, { body, icon: "/icon.jpg", tag: `dsa-reminder-${Date.now()}` });
   } catch (e) {
     console.warn("[push] showLocalReminder failed entirely:", e);
   }

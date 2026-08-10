@@ -17,7 +17,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { useSettings } from "@/hooks/useSettings";
 import { changeStartDate, deleteAccountData, updateUserProfile } from "@/lib/db";
 import { addDays, daysNeeded, diffDays, formatDate, todayIso } from "@/lib/plan";
-import { pushState, requestPushPermission, subscribeDevice } from "@/lib/push";
+import { pushState, requestPushPermission, subscribeDevice, showLocalReminder, registerReminderWorker } from "@/lib/push";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -250,17 +250,15 @@ export default function SettingsPage() {
 
   async function deleteAccount() {
     try {
-      // Best-effort client-side cleanup while still authenticated. The
-      // deleteUserData Cloud Function (functions/src/index.ts) is the
-      // authoritative cascade delete and also runs server-side right before
-      // the Auth user record itself is removed, so nothing is left behind
-      // even if a step here fails partway.
       await deleteAccountData(userId);
       const user = auth.currentUser;
       if (user) await deleteUser(user);
       await qc.cancelQueries();
       qc.clear();
-      toast.success("Your data has been deleted.");
+      if (typeof window !== "undefined") {
+        window.localStorage.clear();
+      }
+      toast.success("Your account and all associated data have been permanently deleted.");
       router.push("/auth?next=/today");
     } catch (e) {
       const needsReauth = e instanceof FirebaseError && e.code === "auth/requires-recent-login";
@@ -449,7 +447,7 @@ export default function SettingsPage() {
       >
         <div className="space-y-5">
           {/* Master Browser Notification Switch */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <Label htmlFor="push" className="font-semibold text-base">Browser notifications</Label>
               <p className="text-xs text-muted-foreground">
@@ -458,16 +456,38 @@ export default function SettingsPage() {
                   : pushPerm === "denied"
                     ? "Blocked — open browser site settings and allow notifications."
                     : pushPerm === "granted"
-                      ? "✓ Permission granted — browser notifications are active when tab is open."
+                      ? "✓ Permission granted — browser notifications active."
                       : "Master toggle for all local browser alerts."}
               </p>
             </div>
-            <Switch
-              id="push"
-              checked={settings.pushEnabled}
-              disabled={pushPerm === "unsupported" || pushPerm === "denied"}
-              onCheckedChange={(v) => void togglePush(v)}
-            />
+            <div className="flex items-center gap-2">
+              {pushPerm === "granted" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await registerReminderWorker();
+                    await showLocalReminder(
+                      "🔔 Test Notification — DSA404",
+                      "Browser notifications are working perfectly on your device!"
+                    );
+                    toast.success("Test notification sent!", {
+                      description: "If you didn't see a popup, check your OS Notification & Focus/Do Not Disturb settings.",
+                    });
+                  }}
+                  className="text-xs h-8"
+                >
+                  Test Notification 🔔
+                </Button>
+              )}
+              <Switch
+                id="push"
+                checked={settings.pushEnabled}
+                disabled={pushPerm === "unsupported" || pushPerm === "denied"}
+                onCheckedChange={(v) => void togglePush(v)}
+              />
+            </div>
           </div>
 
           {/* Sub-options for Browser Notifications */}

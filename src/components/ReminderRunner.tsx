@@ -16,7 +16,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useContests } from "@/hooks/useContests";
 import { todayIso } from "@/lib/plan";
-import { showLocalReminder, timeToMinutes } from "@/lib/push";
+import { registerReminderWorker, showLocalReminder, timeToMinutes } from "@/lib/push";
 import { fetchTopicReminders, markTopicReminderTriggered } from "@/lib/reminders";
 
 const STORAGE_KEY_EVENING = "dsa:last-local-reminder";
@@ -45,6 +45,9 @@ export function ReminderRunner() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if ("Notification" in window && Notification.permission === "granted") {
+      void registerReminderWorker();
+    }
 
     const tick = async () => {
       const now = new Date();

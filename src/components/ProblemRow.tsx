@@ -20,7 +20,7 @@ function googleSearchUrl(problemName: string, topic?: string) {
 }
 
 function youtubeSearchUrl(problemName: string) {
-  const query = `${problemName} explained by jenny lectures,tutorial point,risingbrains  `;
+  const query = `"${problemName}" DSA solution intuition brute force optimal approach code`;
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 

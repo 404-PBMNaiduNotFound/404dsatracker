@@ -320,11 +320,9 @@ export function rebalanceRemaining(
   pending.forEach((item) => {
     const cost = problemCost(item.problem.difficulty, counts);
 
-    // If section changes or adding this problem exceeds 1 full day capacity budget (1.0), flush day!
-    if (item.section !== currentSection || (dayBudget > 0 && dayBudget + cost > 1.0001)) {
+    // Flush day ONLY when cumulative workload budget + cost exceeds 1 full day capacity (1.0001)
+    if (dayBudget > 0 && dayBudget + cost > 1.0001) {
       flush();
-      currentSection = item.section;
-      partIndex = 1;
     }
 
     bucket.push(item);
