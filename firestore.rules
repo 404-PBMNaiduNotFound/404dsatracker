@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// Equivalent of the old Postgres RLS policies (every policy in
+// supabase/migrations/*.sql was "own row only" — auth.uid() = user_id).
+// Firestore's path structure already scopes each user to users/{uid}/**,
+// but these rules are still required as defense-in-depth: without them,
+// any authenticated client could read/write any path.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      // Public profile fields (displayName, photoURL, bio, codingProfiles, publicStats)
+      // are intentionally world-readable so the shareable /profile/[uid] route works
+      // without login. Write access remains owner-only.
+      allow read: if true;
+      allow write: if isOwner(uid);
+
+      // Plan days, sync metadata, notes/chat history, and revision-event log —
+      // all freely readable/writable by their owner, same as the old
+      // "own days / own meta / own events" RLS policies.
+      // Plan days — readable by anyone so the public /profile/[uid] page
+      // can render heatmaps and stats without requiring the visitor to log in.
+      // Write access remains owner-only.
+      match /days/{dayNumber} {
+        allow read: if true;
+        allow write: if isOwner(uid);
+      }
+
+      match /meta/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /revisionEvents/{eventId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /settings/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Achievements are informational badges. The app currently computes
+      // them client-side on every read (src/lib/gamification.ts) and never
+      // persists them, so this collection is unused today — but per the
+      // migration brief, writes are restricted to the Cloud Functions
+      // Admin SDK (which bypasses rules entirely) to prevent a user from
+      // granting themselves badges directly, should persistence be added
+      // later. Reads stay open to the owner.
+      match /achievements/{code} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      // Push subscription documents are keyed by the device's FCM token.
+      match /pushSubscriptions/{tokenId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Topic reminders stored per user.
+      match /reminders/{reminderId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+  }
+}

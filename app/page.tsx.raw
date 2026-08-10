@@ -1,0 +1,922 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  CalendarDays,
+  ListTodo,
+  BarChart3,
+  CalendarRange,
+  LayoutGrid,
+  BookmarkCheck,
+  Settings,
+  Sparkles,
+  Cloud,
+  RefreshCw,
+  Trophy,
+  Code2,
+} from "lucide-react";
+
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "120-Day Striver A2Z DSA Tracker" },
+      {
+        name: "description",
+        content:
+          "Finish Striver's A2Z DSA sheet in 120 days. Daily problem checklists, AI mentor, cloud-synced progress, and a schedule that reshapes itself when life happens.",
+      },
+      { property: "og:title", content: "120-Day Striver A2Z DSA Tracker" },
+      {
+        property: "og:description",
+        content:
+          "Finish Striver's A2Z DSA sheet in 120 days. Daily problem checklists, AI mentor, cloud-synced progress, and a schedule that reshapes itself when life happens.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: Index,
+});
+
+/* ─── animation hook ─────────────────────────────────────── */
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.setAttribute("data-visible", "true");
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.12 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return ref;
+}
+
+/* ─── count-up hook ──────────────────────────────────────── */
+function useCountUp(target: number, duration = 1200) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        obs.disconnect();
+        const start = performance.now();
+        function tick(now: number) {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          el!.textContent = Math.round(eased * target).toString();
+          if (progress < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.5 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [target, duration]);
+  return ref;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════════ */
+function HeroSection() {
+  return (
+    <section className="relative overflow-hidden py-20 sm:py-28">
+      {/* subtle grid bg */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+
+      <div className="relative mx-auto max-w-5xl px-4">
+        <p className="mb-4 font-mono text-xs tracking-[0.2em] text-primary uppercase">
+          Striver A2Z · 474 problems · 18 sections · 120 days
+        </p>
+
+        <h1 className="hero-headline font-display text-4xl font-bold tracking-tight sm:text-6xl leading-tight max-w-3xl">
+          Finish DSA in 120&nbsp;days.<br />
+          <span className="text-primary">One honest day at a time.</span>
+        </h1>
+
+        <p className="hero-sub mt-6 max-w-2xl text-base text-muted-foreground leading-relaxed">
+          A daily problem checklist built from Striver's A2Z DSA sheet. Every day has a topic,
+          problems with difficulty tags, a 12-step study checklist, an AI mentor, and a doubt
+          chat. Life happens — postpone, skip, or insert revision days and the entire 120-day
+          schedule reshapes itself automatically.
+        </p>
+
+        <div className="hero-cta mt-8 flex flex-wrap gap-3">
+          <Button asChild size="lg" className="font-mono">
+            <Link to="/auth" search={{ next: "/today" }}>
+              Start the plan
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="font-mono">
+            <a href="#how-it-works">See how it works</a>
+          </Button>
+        </div>
+
+        {/* Terminal window */}
+        <div className="hero-terminal mt-14 max-w-lg rounded-xl border border-border bg-card shadow-lg overflow-hidden">
+          <div className="flex items-center gap-1.5 border-b border-border bg-muted/50 px-4 py-2.5">
+            <span className="size-3 rounded-full bg-red-500/70" />
+            <span className="size-3 rounded-full bg-yellow-500/70" />
+            <span className="size-3 rounded-full bg-green-500/70" />
+            <span className="ml-2 font-mono text-xs text-muted-foreground">dsa-tracker — zsh</span>
+          </div>
+          <div className="p-5 font-mono text-sm leading-7">
+            <p className="text-primary">&gt; Loading plan...</p>
+            <p>
+              <span className="text-muted-foreground">  Day     </span>
+              <span className="text-foreground font-semibold">1 / 120</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">  Section </span>
+              <span className="text-foreground">Basics</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">  Topic   </span>
+              <span className="text-foreground">Recursion</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">  Problems</span>
+              <span className="text-foreground"> 8 </span>
+              <span className="text-green-500 text-xs">(Easy ×6, Medium ×2)</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">  Est time</span>
+              <span className="text-foreground"> 3 h 30 m</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">  Status  </span>
+              <span className="text-yellow-400">⬜ pending</span>
+              <span className="terminal-cursor text-primary font-bold"> _</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATS BAR
+═══════════════════════════════════════════════════════════ */
+function StatsBar() {
+  const c474 = useCountUp(474);
+  const c18 = useCountUp(18);
+  const c120 = useCountUp(120);
+  const c4 = useCountUp(4);
+
+  const stats = [
+    { ref: c474, value: 474, label: "Problems" },
+    { ref: c18, value: 18, label: "Sections" },
+    { ref: c120, value: 120, label: "Days" },
+    { ref: c4, value: 4, label: "Avg / day", prefix: "~" },
+  ];
+
+  return (
+    <div className="border-y border-border bg-muted/30">
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+          {stats.map((s, i) => (
+            <div key={s.label} className={`text-center ${i < 3 ? "sm:border-r border-border" : ""}`}>
+              <p className="font-mono text-4xl font-bold text-foreground tabular-nums">
+                {s.prefix ?? ""}
+                <span ref={s.ref}>0</span>
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOW IT WORKS
+═══════════════════════════════════════════════════════════ */
+function HowItWorks() {
+  const ref = useReveal();
+  const steps = [
+    {
+      icon: CalendarDays,
+      title: "Sign up & get your plan",
+      body: "The moment you sign up, your personal 120-day schedule is generated from Striver's A2Z sheet. All 474 problems are distributed across 18 sections in study order, starting from the day you join.",
+      step: "01",
+    },
+    {
+      icon: ListTodo,
+      title: "Work day by day",
+      body: "Every day shows you: the topic, all problems with difficulty tags, a 12-step study checklist (Watch video → Submit → Push to GitHub), your personal notes, and an AI explainer for that day's patterns.",
+      step: "02",
+    },
+    {
+      icon: BarChart3,
+      title: "Track, adapt, finish",
+      body: "Mark problems done. If life gets in the way, postpone a day or insert a revision day — the schedule auto-rebalances. Streaks, badges and charts keep you honest across all 120 days.",
+      step: "03",
+    },
+  ];
+
+  return (
+    <section id="how-it-works" className="py-20 sm:py-24">
+      <div className="mx-auto max-w-5xl px-4">
+        <h2 className="font-display text-3xl font-bold tracking-tight">
+          How the 120-day plan works
+        </h2>
+
+        <div
+          ref={ref}
+          className="mt-12 grid gap-6 sm:grid-cols-3 how-steps"
+        >
+          {steps.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.step}
+                className="step-card relative rounded-xl border border-border bg-card p-6 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                style={{ animationDelay: `${i * 150}ms` }}
+              >
+                <span className="font-mono text-5xl font-bold text-primary/10 absolute top-4 right-4 leading-none select-none">
+                  {s.step}
+                </span>
+                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                  <Icon className="size-5 text-primary" />
+                </div>
+                <h3 className="font-display text-base font-semibold mb-2">{s.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FEATURE CARDS
+═══════════════════════════════════════════════════════════ */
+
+
+function WeekMock() {
+  return (
+    <div className="mt-4 space-y-3 font-mono text-xs">
+      {[
+        { week: "Week 2", done: 18, total: 28, days: ["Mon ✓", "Tue ✓", "Wed →"] },
+        { week: "Week 3", done: 4, total: 30, days: ["Mon ✓", "Tue ⬜", "Wed ⬜"] },
+      ].map((w) => (
+        <div key={w.week} className="rounded-lg border border-border bg-muted p-3">
+          <div className="flex justify-between mb-1">
+            <span className="font-semibold text-foreground">{w.week}</span>
+            <span className="text-muted-foreground">{w.done}/{w.total} problems</span>
+          </div>
+          <Progress value={(w.done / w.total) * 100} className="h-1.5 mb-2" />
+          <div className="flex gap-2">
+            {w.days.map((d) => (
+              <span key={d} className="rounded px-2 py-0.5 bg-card border border-border text-muted-foreground text-[10px]">
+                {d}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProgressMock() {
+  return (
+    <div className="mt-4 font-mono text-xs">
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {[
+          { v: "42", l: "problems done", c: "text-primary" },
+          { v: "8🔥", l: "day streak", c: "text-orange-500" },
+          { v: "67%", l: "Easy", c: "text-green-500" },
+          { v: "4 Nov", l: "projected finish", c: "text-muted-foreground" },
+        ].map((s) => (
+          <div key={s.l} className="rounded-lg border border-border bg-muted p-2.5 text-center">
+            <p className={`font-bold text-lg ${s.c}`}>{s.v}</p>
+            <p className="text-muted-foreground text-[10px]">{s.l}</p>
+          </div>
+        ))}
+      </div>
+      {/* fake bar chart */}
+      <div className="rounded-lg border border-border bg-muted p-3">
+        <p className="text-muted-foreground mb-2">Problems / week</p>
+        <div className="flex items-end gap-1.5 h-12">
+          {[30, 55, 40, 70, 60, 80, 65].map((h, i) => (
+            <div
+              key={i}
+              className="flex-1 rounded-t bg-primary/40"
+              style={{ height: `${h}%` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BacklogMock() {
+  return (
+    <div className="mt-4 font-mono text-xs space-y-2">
+      {["Day 9 · Sorting", "Day 11 · Arrays"].map((d) => (
+        <div key={d} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 p-2.5">
+          <span className="text-foreground">{d}</span>
+          <span className="rounded px-1.5 py-0.5 bg-red-500/15 text-red-500 text-[10px]">Past due</span>
+        </div>
+      ))}
+      <button className="w-full rounded-lg border border-primary/30 bg-primary/5 text-primary py-2 text-[10px] mt-1">
+        + Insert a Revision Day
+      </button>
+    </div>
+  );
+}
+
+function TopicMock() {
+  const sections = [
+    { name: "Arrays", done: 23, total: 40 },
+    { name: "Binary Search", done: 12, total: 28 },
+    { name: "Linked Lists", done: 0, total: 31 },
+  ];
+  return (
+    <div className="mt-4 font-mono text-xs space-y-2">
+      {sections.map((s) => (
+        <div key={s.name} className="rounded-lg border border-border bg-muted p-2.5">
+          <div className="flex justify-between mb-1">
+            <span className="font-semibold text-foreground">{s.name}</span>
+            <span className="text-muted-foreground">{s.done}/{s.total}</span>
+          </div>
+          <Progress value={(s.done / s.total) * 100} className="h-1" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReviewMock() {
+  return (
+    <div className="mt-4 font-mono text-xs space-y-2">
+      {[
+        { day: "Day 7 · Recursion", prob: "Subsets with Duplicates" },
+        { day: "Day 12 · Arrays", prob: "Trapping Rain Water" },
+      ].map((r) => (
+        <div key={r.prob} className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-2.5">
+          <p className="text-yellow-500/80 text-[10px] mb-0.5">{r.day}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-400">🔖</span>
+            <span className="text-foreground">{r.prob}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ContestMock() {
+  return (
+    <div className="mt-4 font-mono text-xs space-y-2">
+      {[
+        { platform: "LeetCode", title: "Weekly Contest 513", time: "Today · 08:00 IST", dur: "90 min", live: true },
+        { platform: "Codeforces", title: "CF Round 1113 (Div. 2)", time: "Today · 20:05 IST", dur: "150 min", live: false },
+        { platform: "CodeChef", title: "Starters 250", time: "Aug 5 · 20:00 IST", dur: "120 min", live: false },
+      ].map((c) => (
+        <div key={c.title} className="rounded-lg border border-border bg-muted p-2.5">
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="text-[10px] text-muted-foreground">{c.platform}</span>
+            {c.live && (
+              <span className="text-[9px] rounded-full bg-green-500/15 text-green-500 px-1.5 py-0.5 font-semibold">● LIVE</span>
+            )}
+          </div>
+          <p className="text-foreground font-semibold truncate">{c.title}</p>
+          <div className="flex gap-3 mt-1 text-muted-foreground text-[10px]">
+            <span>🕐 {c.time}</span>
+            <span>⏱ {c.dur}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProblemsMock() {
+  return (
+    <div className="mt-4 font-mono text-xs space-y-2">
+      <div className="grid grid-cols-2 gap-2 mb-1">
+        {[
+          { label: "Total", val: "775", color: "text-primary" },
+          { label: "Verified links", val: "474+", color: "text-green-500" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-lg border border-border bg-muted p-2.5 text-center">
+            <p className={`font-bold text-base ${s.color}`}>{s.val}</p>
+            <p className="text-muted-foreground text-[10px]">{s.label}</p>
+          </div>
+        ))}
+      </div>
+      {[
+        { name: "LeetCode", a2z: 456, extra: 175, color: "bg-[#FFA116]" },
+        { name: "GeeksforGeeks", a2z: 18, extra: 126, color: "bg-[#2F8D46]" },
+      ].map((p) => (
+        <div key={p.name} className="rounded-lg border border-border bg-muted p-2.5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className={`size-2 rounded-full ${p.color}`} />
+            <span className="text-foreground font-semibold">{p.name}</span>
+          </div>
+          <div className="flex gap-3 text-[10px] text-muted-foreground">
+            <span>A2Z: <span className="text-foreground">{p.a2z}</span></span>
+            <span>Extra sheets: <span className="text-foreground">{p.extra}</span></span>
+          </div>
+        </div>
+      ))}
+      <div className="rounded-lg border border-border bg-muted p-2 text-[10px] text-muted-foreground">
+        Sheets: Striver A2Z · NeetCode 150 · Blind 75 · Babbar 450 · Top Interview 150 · GFG Must-Do
+      </div>
+    </div>
+  );
+}
+
+function SettingsMock() {
+  return (
+    <div className="mt-4 font-mono text-xs space-y-2">
+      <div className="rounded-lg border border-border bg-muted p-2.5">
+        <p className="text-muted-foreground mb-2">Daily pace</p>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+            <div className="h-full bg-primary rounded-full" style={{ width: "55%" }} />
+          </div>
+          <span className="text-foreground">~4 problems</span>
+        </div>
+      </div>
+      <div className="rounded-lg border border-border bg-muted p-2.5 flex items-center justify-between">
+        <span className="text-foreground">Enable reminders</span>
+        <div className="w-8 h-4 rounded-full bg-primary relative">
+          <div className="absolute right-0.5 top-0.5 size-3 rounded-full bg-white" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface FeatureCardProps {
+  icon: React.ElementType;
+  color: string;
+  title: string;
+  bullets: string[];
+  mock: React.ReactNode;
+  delay?: number;
+}
+
+function FeatureCard({ icon: Icon, color, title, bullets, mock, delay = 0 }: FeatureCardProps) {
+  return (
+    <div
+      className="feature-card rounded-xl border border-border bg-card p-6 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className={`inline-flex size-9 items-center justify-center rounded-lg ${color} mb-4`}>
+        <Icon className="size-4" />
+      </div>
+      <h3 className="font-display text-base font-semibold mb-3">{title}</h3>
+      <ul className="space-y-1.5 mb-1">
+        {bullets.map((b) => (
+          <li key={b} className="flex gap-2 text-sm text-muted-foreground">
+            <span className="text-primary mt-0.5 shrink-0">›</span>
+            <span>{b}</span>
+          </li>
+        ))}
+      </ul>
+      {mock}
+    </div>
+  );
+}
+
+function FeatureWalkthrough() {
+  const ref = useReveal();
+
+  const cards = [
+    {
+      icon: ListTodo,
+      color: "bg-green-500/10 text-green-600 dark:text-green-400",
+      title: "Today — Your daily command centre",
+      bullets: [
+        'See today\'s topic and section (e.g. "Binary Search › BS on 1D Arrays")',
+        "Check off each problem — Easy (15 min), Medium (30 min), Hard (45 min) estimates shown",
+        "12-step checklist: Watch video → Brute force → Optimise → Code → Submit → Push to GitHub",
+        "Write personal notes that sync to the cloud",
+        "Today's tab also shows today's live & upcoming contests — no tab switching needed",
+        "One-click ChatGPT explain button pre-fills the prompt for the day's topic",
+      ],
+      mock: null,
+    },
+    {
+      icon: CalendarRange,
+      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+      title: "Week View — Your 17-week roadmap at a glance",
+      bullets: [
+        "See all 120 days grouped into 17 weeks",
+        "Each week shows a progress bar: X / Y problems done",
+        "Jump directly into any day by clicking its card",
+        "Skip future days you know you'll miss — schedule adjusts cleanly",
+        "Colour-coded statuses: pending / completed / postponed / revision / skipped",
+      ],
+      mock: <WeekMock />,
+    },
+    {
+      icon: BarChart3,
+      color: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+      title: "Progress — Stats that tell the truth",
+      bullets: [
+        "Overall completion: X / 474 problems done",
+        "Current streak and longest streak",
+        "Difficulty split: Easy / Medium / Hard breakdown",
+        "Weekly solved-problems trend (bar chart)",
+        "Badges earned and a full event log with timestamps",
+      ],
+      mock: <ProgressMock />,
+    },
+    {
+      icon: CalendarDays,
+      color: "bg-red-500/10 text-red-600 dark:text-red-400",
+      title: "Backlog — Nothing falls through the cracks",
+      bullets: [
+        "Shows every past day you haven't fully completed",
+        'One-click "Insert a Revision Day" schedules extra catch-up time',
+        "Schedule ripples forward automatically — no days are lost",
+        "Backlog clears itself as you catch up",
+      ],
+      mock: <BacklogMock />,
+    },
+    {
+      icon: LayoutGrid,
+      color: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+      title: "Topic View — All 18 sections at once",
+      bullets: [
+        "Accordion of all 18 Striver A2Z sections in study order",
+        "Each section shows X / Y problems done with a mini progress bar",
+        "Expand any section to see all its study days and jump in",
+        "Skip a whole section or a single topic — schedule adjusts",
+        "Restore skipped sections any time",
+      ],
+      mock: <TopicMock />,
+    },
+    {
+      icon: BookmarkCheck,
+      color: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
+      title: "Review — Your personal \"revisit later\" list",
+      bullets: [
+        "Bookmark any problem in Today with one tap",
+        "All bookmarks from all 120 days appear here, sorted by day",
+        "Shows which day and topic each problem belongs to",
+        "Clear the bookmark once you've mastered it",
+      ],
+      mock: <ReviewMock />,
+    },
+    {
+      icon: Trophy,
+      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      title: "Contests — Never miss a CP round",
+      bullets: [
+        "Live, upcoming, and missed contests from LeetCode, Codeforces, CodeChef, AtCoder & HackerRank",
+        "Contests sorted by start time — live contests float to the top with a green indicator",
+        "Duration shown for every contest so you can plan around it",
+        "One-click link opens the contest page directly on the platform",
+        "Today's tab also shows a mini contest strip — today's live & upcoming rounds at a glance",
+      ],
+      mock: <ContestMock />,
+    },
+    {
+      icon: Code2,
+      color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+      title: "Problems — 775+ problems, 6 curated sheets",
+      bullets: [
+        "474 Striver A2Z problems + 301 extra problems from 5 popular sheets in one searchable table",
+        "LeetCode: 456 (A2Z) + 175 extra · GeeksforGeeks: 18 (A2Z) + 126 extra",
+        "Filter by platform (LeetCode, GFG, HackerRank, CodeStudio), difficulty, or sheet",
+        "Sheets: NeetCode 150 · Blind 75 · Love Babbar 450 · Top Interview 150 · GFG Must-Do",
+        "Verified direct links — no search-fallback guessing; problems with unconfirmed links are flagged",
+        "Mark problems done and track completions across all sheets independently",
+      ],
+      mock: <ProblemsMock />,
+    },
+    {
+      icon: Settings,
+      color: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+      title: "Settings — Your plan, your pace",
+      bullets: [
+        "Account: update name, change password, link Google account",
+        "Daily pace: adjust problems/day — end date auto-updates",
+        "Schedule shift: move all remaining days forward by N days",
+        "Pause plan and resume later — no days lost",
+        "Theme: Dark / Light / System toggle",
+      ],
+      mock: <SettingsMock />,
+    },
+  ];
+
+  return (
+    <section className="py-20 sm:py-24 border-t border-border">
+      <div className="mx-auto max-w-5xl px-4">
+        <h2 className="font-display text-3xl font-bold tracking-tight">Every page, explained</h2>
+        <p className="mt-2 text-muted-foreground">
+          Everything you need — nothing you don't. Here's what's waiting inside.
+        </p>
+
+        <div ref={ref} className="mt-10 grid gap-6 sm:grid-cols-2 feature-grid">
+          {cards.map((c, i) => (
+            <FeatureCard key={c.title} {...c} delay={i * 80} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI SECTION — ChatGPT explain
+═══════════════════════════════════════════════════════════ */
+function AISection() {
+  const ref = useReveal();
+  return (
+    <section className="py-20 sm:py-24 relative overflow-hidden border-t border-border">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      <div className="relative mx-auto max-w-5xl px-4">
+        <div ref={ref} className="ai-col flex flex-col sm:flex-row items-start gap-10 rounded-2xl border border-border bg-card/80 backdrop-blur p-8 sm:p-10">
+          {/* left: text */}
+          <div className="flex-1 min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-green-500/30 bg-green-500/8 px-3 py-1 text-xs text-green-600 dark:text-green-400 font-mono mb-5">
+              <Sparkles className="size-3" />
+              ChatGPT integration
+            </div>
+            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight mb-3">
+              Understand any topic instantly with ChatGPT
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              On each day's page, hit <span className="font-mono text-sm bg-muted border border-border rounded px-1.5 py-0.5 text-foreground">Explain with ChatGPT</span> and you're taken straight to ChatGPT with the prompt already filled in — the day's topic, section, and a request for intuition, patterns, and complexity. Just press Enter.
+            </p>
+            <ul className="space-y-2">
+              {[
+                "No copy-pasting — the prompt is built from today's topic automatically",
+                "Opens ChatGPT in a new tab with the message pre-loaded",
+                "Works for every one of the 120 days and all 18 sections",
+                "Use your own ChatGPT account — free or Plus, your choice",
+              ].map((b) => (
+                <li key={b} className="flex gap-2 text-sm text-muted-foreground">
+                  <span className="text-primary mt-0.5 shrink-0">›</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* right: mock button + preview */}
+          <div className="w-full sm:w-72 shrink-0">
+            <div className="rounded-xl border border-border bg-muted p-4 font-mono text-xs">
+              <p className="text-muted-foreground mb-1">Day 14 · Binary Search</p>
+              <p className="font-semibold text-foreground mb-3">BS on 1D Arrays</p>
+              <div className="flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/8 px-3 py-2.5 cursor-pointer hover:bg-green-500/15 transition-colors">
+                <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" stroke="currentColor" strokeWidth="1.5" className="text-green-500"/>
+                  <path d="M8 12h8M14 9l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"/>
+                </svg>
+                <span className="text-green-600 dark:text-green-400 font-semibold">Explain with ChatGPT</span>
+              </div>
+              <p className="text-muted-foreground mt-3 text-[10px] leading-4">
+                ↳ Opens ChatGPT with prompt pre-filled:<br />
+                <span className="text-foreground/70">"Explain Binary Search on 1D Arrays — intuition, patterns, time & space complexity, common pitfalls..."</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CLOUD & SCHEDULE
+═══════════════════════════════════════════════════════════ */
+function CloudAndSchedule() {
+  const ref = useReveal();
+  return (
+    <section className="py-20 sm:py-24 border-t border-border">
+      <div className="mx-auto max-w-5xl px-4">
+        <div ref={ref} className="grid gap-8 sm:grid-cols-2 cloud-cols">
+          {[
+            {
+              icon: Cloud,
+              heading: "Progress follows you everywhere",
+              body: "Sign in with email or Google. Every tick, note, and schedule change is written to Firestore in real time. Open the app on your phone during a commute and pick up exactly where your laptop left off.",
+            },
+            {
+              icon: RefreshCw,
+              heading: "Life happens. The plan adapts.",
+              body: "Postpone a day → it moves to tomorrow. Skip a day → it's removed cleanly. Insert a revision day → everything shifts right. The 120-day structure always stays intact — you just keep moving forward.",
+            },
+          ].map((c, i) => {
+            const Icon = c.icon;
+            return (
+              <div
+                key={c.heading}
+                className="cloud-col rounded-xl border border-border bg-card p-7 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                style={{ animationDelay: `${i * 150}ms` }}
+              >
+                <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center mb-5">
+                  <Icon className="size-5 text-primary" />
+                </div>
+                <h3 className="font-display text-lg font-semibold mb-2">{c.heading}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{c.body}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BADGES
+═══════════════════════════════════════════════════════════ */
+function BadgesSection() {
+  const ref = useReveal();
+  const badges = [
+    { label: "🔥 3-Day Streak", earned: true },
+    { label: "🔥 7-Day Streak", earned: true },
+    { label: "🔥 30-Day Streak", earned: false },
+    { label: "✅ First 10", earned: true },
+    { label: "✅ First 50", earned: false },
+    { label: "💯 100 Problems", earned: false },
+    { label: "🏁 Halfway There", earned: false },
+    { label: "🏆 Sheet Complete", earned: false },
+  ];
+
+  return (
+    <section className="py-20 sm:py-24 border-t border-border">
+      <div className="mx-auto max-w-5xl px-4">
+        <h2 className="font-display text-3xl font-bold tracking-tight">Earn badges as you go</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Small wins add up across 120 days.</p>
+
+        <div ref={ref} className="mt-8 flex flex-wrap gap-3 badges-row">
+          {badges.map((b, i) => (
+            <div
+              key={b.label}
+              className={`badge-chip rounded-full border px-4 py-2 text-sm font-mono transition-all
+                ${b.earned
+                  ? "bg-primary/10 border-primary/30 text-foreground"
+                  : "opacity-40 grayscale bg-muted border-border text-muted-foreground"
+                }`}
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              {b.label}
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground font-mono">
+          Showing example progress — earned badges glow, unearned ones fade until you hit the milestone.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FINAL CTA
+═══════════════════════════════════════════════════════════ */
+function FinalCTA() {
+  const ref = useReveal();
+  return (
+    <section className="py-24 border-t border-border">
+      <div ref={ref} className="mx-auto max-w-5xl px-4 text-center cta-inner">
+        <h2 className="font-display text-4xl sm:text-5xl font-bold tracking-tight">
+          Ready to commit to 120&nbsp;days?
+        </h2>
+        <p className="mt-4 text-muted-foreground max-w-lg mx-auto">
+          Create a free account, get your plan instantly, and start today. No credit card needed.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Button asChild size="lg" className="font-mono text-base px-6">
+            <Link to="/auth" search={{ next: "/today" }}>
+              Start the plan — it's free
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="font-mono">
+            <Link to="/today">Open my tracker</Link>
+          </Button>
+        </div>
+        <p className="mt-6 text-xs text-muted-foreground font-mono">
+          ✓ Free forever&nbsp; · &nbsp;✓ No ads&nbsp; · &nbsp;✓ Syncs across devices&nbsp; · &nbsp;✓ Built on Striver's A2Z sheet
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ROOT
+═══════════════════════════════════════════════════════════ */
+function Index() {
+  return (
+    <>
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+        @keyframes slideInLeft {
+          from { opacity: 0; transform: translateX(-20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes heroText {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .terminal-cursor {
+          animation: blink 1s step-end infinite;
+        }
+
+        /* hero animations */
+        .hero-headline {
+          animation: heroText 0.6s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        .hero-sub {
+          animation: heroText 0.6s 0.25s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        .hero-cta {
+          animation: heroText 0.6s 0.45s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        .hero-terminal {
+          animation: heroText 0.7s 0.6s cubic-bezier(0.16,1,0.3,1) both;
+        }
+
+        /* scroll-reveal: children animate when parent gets data-visible */
+        [data-visible="true"] .step-card {
+          animation: slideInLeft 0.5s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        [data-visible="true"] .feature-card {
+          animation: fadeInUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        [data-visible="true"] .ai-col {
+          animation: fadeInUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        [data-visible="true"] .cloud-col {
+          animation: fadeInUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        [data-visible="true"] .badge-chip {
+          animation: slideInRight 0.4s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        [data-visible="true"] .cta-inner {
+          animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+      `}</style>
+
+      <div className="min-h-screen bg-background text-foreground">
+        <HeroSection />
+        <StatsBar />
+        <HowItWorks />
+        <FeatureWalkthrough />
+        <AISection />
+        <CloudAndSchedule />
+        <BadgesSection />
+        <FinalCTA />
+      </div>
+    </>
+  );
+}
