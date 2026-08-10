@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Bell, CalendarDays, Palette, PauseCircle, PlayCircle, Sliders, UserCog, HelpCircle } from "lucide-react";
@@ -287,57 +288,83 @@ export default function SettingsPage() {
       <Section
         icon={Sliders}
         title="Daily problem pace"
-        description="How many problems of each difficulty you want per day. Enter any custom pace (Minimum required: Easy: 2, Medium: 1, Hard: 1)."
+        description="Configure maximum problems you want to solve each day by difficulty. The schedule redistributes your remaining problems according to these caps."
       >
-        <div className="grid gap-4 sm:grid-cols-3">
-          {(["easy", "medium", "hard"] as const).map((k) => {
-            const min = minPace[k];
-            const currentVal = counts[k];
-            const isInvalid = currentVal === undefined || currentVal < min;
+        <div className="space-y-5 max-w-lg">
+          {/* Easy */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5 font-medium">
+                <span className="inline-block size-2 rounded-full bg-green-500" />
+                Easy problems / day
+              </Label>
+              <span className="w-6 text-center font-bold text-green-600 tabular-nums">{counts.easy}</span>
+            </div>
+            <Slider
+              min={1} max={10} step={1}
+              value={[counts.easy]}
+              onValueChange={([v]) => {
+                setCounts((c) => ({ ...c, easy: v }));
+                setCountsDirty(true);
+              }}
+              className="[&>[role=slider]]:bg-green-500"
+            />
+            <p className="text-[11px] text-muted-foreground">Max {counts.easy} Easy problems/day (~{counts.easy * 15} min at 15m/easy)</p>
+          </div>
 
-            return (
-              <div key={k}>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor={`count-${k}`} className="capitalize font-medium">
-                    {k} per day
-                  </Label>
-                  <span className="text-[11px] text-muted-foreground">Min {min}</span>
-                </div>
-                <Input
-                  id={`count-${k}`}
-                  type="number"
-                  min={min}
-                  max={50}
-                  value={counts[k] === 0 ? "" : (counts[k] ?? "")}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    const parsed = parseInt(raw, 10);
-                    setCounts((c) => ({
-                      ...c,
-                      [k]: isNaN(parsed) ? 0 : parsed,
-                    }));
-                    setCountsDirty(true);
-                  }}
-                  className={cn("mt-1.5", isInvalid && "border-destructive focus-visible:ring-destructive")}
-                />
-                {isInvalid && (
-                  <p className="mt-1 text-[11px] text-destructive font-medium">
-                    Must be at least {min}
-                  </p>
-                )}
-              </div>
-            );
-          })}
+          {/* Medium */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5 font-medium">
+                <span className="inline-block size-2 rounded-full bg-yellow-500" />
+                Medium pace limit / day
+              </Label>
+              <span className="w-6 text-center font-bold text-yellow-600 tabular-nums">{counts.medium}</span>
+            </div>
+            <Slider
+              min={1} max={8} step={1}
+              value={[counts.medium]}
+              onValueChange={([v]) => {
+                setCounts((c) => ({ ...c, medium: v }));
+                setCountsDirty(true);
+              }}
+              className="[&>[role=slider]]:bg-yellow-500"
+            />
+            <p className="text-[11px] text-muted-foreground">Max {counts.medium} Medium problems/day (~{counts.medium * 30} min at 30m/medium)</p>
+          </div>
+
+          {/* Hard */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5 font-medium">
+                <span className="inline-block size-2 rounded-full bg-red-500" />
+                Hard pace limit / day
+              </Label>
+              <span className="w-6 text-center font-bold text-red-600 tabular-nums">{counts.hard}</span>
+            </div>
+            <Slider
+              min={1} max={5} step={1}
+              value={[counts.hard]}
+              onValueChange={([v]) => {
+                setCounts((c) => ({ ...c, hard: v }));
+                setCountsDirty(true);
+              }}
+              className="[&>[role=slider]]:bg-red-500"
+            />
+            <p className="text-[11px] text-muted-foreground">Max {counts.hard} Hard problems/day (~{counts.hard * 45} min at 45m/hard)</p>
+          </div>
         </div>
-        {!isCountsValid && (
-          <p className="mt-3.5 text-xs text-destructive font-medium">
-            ⚠️ Invalid pace configuration. Please set Easy to at least 2, Medium to at least 1, and Hard to at least 1.
+
+        {/* Pace Summary Box */}
+        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 max-w-lg">
+          <p className="text-sm font-medium text-primary">
+            Dynamic daily study time: ~{Math.min(counts.easy * 15, counts.medium * 30, counts.hard * 45)} to {Math.max(counts.easy * 15, counts.medium * 30, counts.hard * 45)} min / day
           </p>
-        )}
-        <p className="mt-3 text-sm text-muted-foreground">
-          {preview.remaining} problems left → about <strong>{preview.need}</strong> more days.
-          Completed days are never touched.
-        </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {preview.remaining} problems left → about <strong>{preview.need}</strong> more days. Workload is dynamically calculated per day from actual problem types (Easy: 15m, Medium: 30m, Hard: 45m). Leftover problems overflow to next day.
+          </p>
+        </div>
+
         <Button className="mt-4" disabled={!countsDirty || busy || !isCountsValid} onClick={() => void applyCounts()}>
           Apply &amp; redistribute
         </Button>
@@ -346,12 +373,12 @@ export default function SettingsPage() {
       <Section
         icon={CalendarDays}
         title="Plan start date"
-        description="The date your DSA plan begins. Changing this reseeds all days from scratch — your progress marks will be lost."
+        description="Pick the date your preparation journey begins. Changing this reseeds all days from scratch."
       >
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-4 max-w-lg">
           <div className="space-y-1.5">
-            <Label htmlFor="plan-start-date">Start date</Label>
-            <input
+            <Label htmlFor="plan-start-date">Start Date</Label>
+            <Input
               id="plan-start-date"
               type="date"
               value={planStartDate}
@@ -359,9 +386,20 @@ export default function SettingsPage() {
                 setPlanStartDate(e.target.value);
                 setStartDirty(true);
               }}
-              className="mt-1.5 flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="text-sm max-w-xs"
             />
           </div>
+
+          <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 space-y-1">
+            <p className="text-xs font-semibold text-foreground">Selected Start Date Summary</p>
+            <p className="text-xs text-muted-foreground">
+              📅 Starting: {new Date(`${planStartDate}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Current active start date: <strong>{formatDate(startDate)}</strong>
+            </p>
+          </div>
+
           <ConfirmDialog
             trigger={
               <Button disabled={!startDirty || startBusy}>
@@ -369,15 +407,12 @@ export default function SettingsPage() {
               </Button>
             }
             title="Reset plan to new start date?"
-            description={`This reseeds all ${preview.need} days from the new date. Your existing progress (done problems, notes) will be lost. This cannot be undone.`}
+            description={`This reseeds all ${preview.need} days from the new date (${planStartDate}). Your existing progress marks will be reset. This cannot be undone.`}
             confirmLabel="Yes, reset plan"
             destructive
             onConfirm={applyStartDate}
           />
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Current start date: <strong>{formatDate(startDate)}</strong>
-        </p>
       </Section>
 
       <Section

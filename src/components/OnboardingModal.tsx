@@ -127,7 +127,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                     onValueChange={([v]) => setCount("easy", v)}
                     className="[&>[role=slider]]:bg-green-500"
                   />
-                  <p className="text-[11px] text-muted-foreground">~{counts.easy * 15} min/day for easy problems</p>
+                  <p className="text-[11px] text-muted-foreground">Max {counts.easy} Easy problems/day (~{counts.easy * 15} min at 15m/easy)</p>
                 </div>
 
                 {/* Medium */}
@@ -135,7 +135,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-1.5">
                       <span className="inline-block size-2 rounded-full bg-yellow-500" />
-                      Medium problems / day
+                      Medium pace limit / day
                     </Label>
                     <span className="w-6 text-center font-bold text-yellow-600 tabular-nums">{counts.medium}</span>
                   </div>
@@ -145,7 +145,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                     onValueChange={([v]) => setCount("medium", v)}
                     className="[&>[role=slider]]:bg-yellow-500"
                   />
-                  <p className="text-[11px] text-muted-foreground">~{counts.medium * 30} min/day for medium problems</p>
+                  <p className="text-[11px] text-muted-foreground">Max {counts.medium} Medium problems/day (~{counts.medium * 30} min at 30m/medium)</p>
                 </div>
 
                 {/* Hard */}
@@ -153,7 +153,7 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-1.5">
                       <span className="inline-block size-2 rounded-full bg-red-500" />
-                      Hard problems / day
+                      Hard pace limit / day
                     </Label>
                     <span className="w-6 text-center font-bold text-red-600 tabular-nums">{counts.hard}</span>
                   </div>
@@ -163,17 +163,17 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
                     onValueChange={([v]) => setCount("hard", v)}
                     className="[&>[role=slider]]:bg-red-500"
                   />
-                  <p className="text-[11px] text-muted-foreground">~{counts.hard * 45} min/day for hard problems</p>
+                  <p className="text-[11px] text-muted-foreground">Max {counts.hard} Hard problems/day (~{counts.hard * 45} min at 45m/hard)</p>
                 </div>
               </div>
 
               {/* Daily time estimate */}
               <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
                 <p className="text-sm font-medium text-primary">
-                  Estimated daily study time: ~{estMinutes} min ({estHours} hrs)
+                  Dynamic daily study time: ~{Math.min(counts.easy * 15, counts.medium * 30, counts.hard * 45)} to {Math.max(counts.easy * 15, counts.medium * 30, counts.hard * 45)} min / day
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {counts.easy}E + {counts.medium}M + {counts.hard}H per day
+                  Daily workload is calculated dynamically from actual problem difficulties (Easy: 15m, Medium: 30m, Hard: 45m). Leftover problems overflow to next day.
                 </p>
               </div>
 

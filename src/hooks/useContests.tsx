@@ -74,11 +74,57 @@ async function fetchCodeforces(): Promise<Contest[]> {
   }
 }
 
+function generateCalculatedLeetCodeContestsHook(): Contest[] {
+  const contests: Contest[] = [];
+  const now = Date.now();
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+  const ONE_WEEK = 7 * ONE_DAY;
+
+  const refWeeklyNum = 435;
+  const refWeeklyTime = 1738463400000;
+  const weeksDiff = Math.floor((now - refWeeklyTime) / ONE_WEEK);
+
+  for (let i = weeksDiff - 2; i <= weeksDiff + 2; i++) {
+    const num = refWeeklyNum + i;
+    const startMs = refWeeklyTime + i * ONE_WEEK;
+    contests.push({
+      id: `lc-weekly-contest-${num}`,
+      platform: "LeetCode" as const,
+      title: `Weekly Contest ${num}`,
+      startMs,
+      durationMs: 5400 * 1000,
+      url: `https://leetcode.com/contest/weekly-contest-${num}`,
+    });
+  }
+
+  const refBiweeklyNum = 149;
+  const refBiweeklyTime = 1738420200000;
+  const biweeksDiff = Math.floor((now - refBiweeklyTime) / (2 * ONE_WEEK));
+
+  for (let i = biweeksDiff - 2; i <= biweeksDiff + 2; i++) {
+    const num = refBiweeklyNum + i;
+    const startMs = refBiweeklyTime + i * (2 * ONE_WEEK);
+    contests.push({
+      id: `lc-biweekly-contest-${num}`,
+      platform: "LeetCode" as const,
+      title: `Biweekly Contest ${num}`,
+      startMs,
+      durationMs: 5400 * 1000,
+      url: `https://leetcode.com/contest/biweekly-contest-${num}`,
+    });
+  }
+
+  return contests;
+}
+
 async function fetchLeetCode(): Promise<Contest[]> {
   try {
     const r = await fetch("https://leetcode.com/graphql", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
       body: JSON.stringify({
         query: `{
           topTwoContests {
@@ -97,13 +143,16 @@ async function fetchLeetCode(): Promise<Contest[]> {
           }
         }`,
       }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(5000),
     });
-    if (!r.ok) return [];
+    if (!r.ok) return generateCalculatedLeetCodeContestsHook();
     const json = await r.json();
     const upcoming: any[] = json?.data?.topTwoContests ?? [];
     const past: any[] = json?.data?.pastContests?.data ?? [];
     const all = [...upcoming, ...past];
+
+    if (!all.length) return generateCalculatedLeetCodeContestsHook();
+
     return all.map((c: any) => ({
       id: `lc-${c.titleSlug}`,
       platform: "LeetCode" as const,
@@ -113,7 +162,7 @@ async function fetchLeetCode(): Promise<Contest[]> {
       url: `https://leetcode.com/contest/${c.titleSlug}`,
     }));
   } catch {
-    return [];
+    return generateCalculatedLeetCodeContestsHook();
   }
 }
 

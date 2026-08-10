@@ -288,7 +288,7 @@ export function rebalanceRemaining(
 
   const rebuilt: Day[] = [];
   let bucket: typeof pending = [];
-  let budget = 0;
+  let dayBudget = 0;
   let currentSection = pending[0].section;
   let partIndex = 1;
 
@@ -313,19 +313,22 @@ export function rebalanceRemaining(
       level: bucket[0]?.level,
     });
     bucket = [];
-    budget = 0;
+    dayBudget = 0;
     partIndex += 1;
   };
 
   pending.forEach((item) => {
-    if (item.section !== currentSection) {
+    const cost = problemCost(item.problem.difficulty, counts);
+
+    // If section changes or adding this problem exceeds 1 full day capacity budget (1.0), flush day!
+    if (item.section !== currentSection || (dayBudget > 0 && dayBudget + cost > 1.0001)) {
       flush();
       currentSection = item.section;
       partIndex = 1;
     }
+
     bucket.push(item);
-    budget += problemCost(item.problem.difficulty, counts);
-    if (budget >= 1 - 1e-9) flush();
+    dayBudget += cost;
   });
   flush();
 
