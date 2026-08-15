@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,14 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { todayIso } from "@/lib/plan";
 import { DEFAULT_DAILY_COUNTS, type DailyCounts } from "@/lib/plan";
-import { Loader2, BookOpen, Zap, Trophy, CalendarDays, Sliders } from "lucide-react";
+import { isUsernameAvailable, normalizeUsername, USERNAME_REGEX } from "@/lib/db";
+import { Loader2, BookOpen, Zap, Trophy, CalendarDays, Sliders, Check, X, AtSign } from "lucide-react";
 
 interface OnboardingModalProps {
   open: boolean;
-  onComplete: (startDate: string, counts: DailyCounts) => Promise<void>;
+  onComplete: (startDate: string, counts: DailyCounts, username: string) => Promise<void>;
 }
 
-const STEPS = ["welcome", "pace", "startdate", "ready"] as const;
+const STEPS = ["welcome", "pace", "startdate", "username", "ready"] as const;
 type Step = typeof STEPS[number];
 
 export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
@@ -24,13 +25,39 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
   const [startDate, setStartDate] = useState(todayIso());
   const [busy, setBusy] = useState(false);
 
+  // ── Username — required before the plan is built, so every account has a
+  // unique handle from day one. Same live-check pattern used in the
+  // sign-in flow and the Profile page: debounce, then isUsernameAvailable().
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
+
+  useEffect(() => {
+    if (step !== "username") return;
+    const raw = username.trim();
+    if (!raw) { setUsernameStatus("idle"); return; }
+    const u = normalizeUsername(raw);
+    if (!USERNAME_REGEX.test(u)) { setUsernameStatus("invalid"); return; }
+    setUsernameStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const available = await isUsernameAvailable(u);
+        setUsernameStatus(available ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  }, [username, step]);
+
   const setCount = (key: keyof DailyCounts, val: number) =>
     setCounts((prev) => ({ ...prev, [key]: val }));
 
   const handleFinish = async () => {
     setBusy(true);
     try {
-      await onComplete(startDate, counts);
+      await onComplete(startDate, counts, normalizeUsername(username));
     } finally {
       setBusy(false);
     }
@@ -49,9 +76,8 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
           {STEPS.map((s, i) => (
             <div
               key={s}
-              className={`h-1 flex-1 rounded-full transition-colors ${
-                STEPS.indexOf(step) >= i ? "bg-primary" : "bg-border"
-              }`}
+              className={`h-1 flex-1 rounded-full transition-colors ${STEPS.indexOf(step) >= i ? "bg-primary" : "bg-border"
+                }`}
             />
           ))}
         </div>
@@ -215,12 +241,71 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setStep("pace")}>Back</Button>
-                <Button className="flex-1" onClick={() => setStep("ready")}>Next →</Button>
+                <Button className="flex-1" onClick={() => setStep("username")}>Next →</Button>
               </div>
             </div>
           )}
 
-          {/* ── Step 4: Ready ── */}
+          {/* ── Step 4: Username ── */}
+          {step === "username" && (
+            <div className="space-y-5">
+              <DialogHeader>
+                <div className="flex items-center gap-2 mb-1">
+                  <AtSign className="size-5 text-primary" />
+                  <DialogTitle>Choose your username</DialogTitle>
+                </div>
+                <DialogDescription>
+                  Enter a username to continue. This is your unique handle — it powers your public profile link.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2">
+                <Label htmlFor="onboarding-username">Username</Label>
+                <div className="relative">
+                  <Input
+                    id="onboarding-username"
+                    autoFocus
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="e.g. jane_doe"
+                    className="text-base pr-9"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+                    {usernameStatus === "available" && <Check className="size-4 text-emerald-500" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="size-4 text-destructive" />}
+                  </span>
+                </div>
+                <p className={`text-[11px] ${usernameStatus === "taken" || usernameStatus === "invalid"
+                    ? "text-destructive"
+                    : usernameStatus === "available"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-muted-foreground"
+                  }`}>
+                  {usernameStatus === "taken"
+                    ? "That username is already taken — try another."
+                    : usernameStatus === "invalid"
+                      ? "3-20 characters: lowercase letters, numbers, - or _ only."
+                      : usernameStatus === "available"
+                        ? "Username is available!"
+                        : "3-20 characters: lowercase letters, numbers, - or _ only."}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setStep("startdate")}>Back</Button>
+                <Button
+                  className="flex-1"
+                  disabled={usernameStatus !== "available"}
+                  onClick={() => setStep("ready")}
+                >
+                  Continue →
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 5: Ready ── */}
           {step === "ready" && (
             <div className="space-y-5">
               <DialogHeader>
@@ -231,6 +316,13 @@ export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
               </DialogHeader>
 
               <div className="space-y-2.5">
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                  <AtSign className="size-4 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Username</p>
+                    <p className="text-sm font-semibold">@{normalizeUsername(username)}</p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
                   <CalendarDays className="size-4 text-primary shrink-0" />
                   <div className="min-w-0">

@@ -119,15 +119,13 @@ function DesktopSidebar({
       <div className="flex flex-col flex-1 bg-card/95 backdrop-blur border-r border-border rounded-r-2xl overflow-hidden shadow-md h-full">
 
         {/* Brand */}
-        <Link href="/today" className="flex items-center gap-3 border-b border-border px-4 py-4 shrink-0 justify-center md:justify-start">
-          {collapsed ? (
-            <div className="font-display font-black tracking-tighter text-[18px] leading-none flex items-baseline select-none">
-              <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">D</span>
-              <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm">⁴</span>
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              <div className="font-display font-black tracking-tighter text-[24px] leading-none flex items-baseline select-none">
+        <Link href="/today" className="flex items-center gap-2.5 border-b border-border px-4 py-4 shrink-0 justify-center md:justify-start">
+          <div className="size-7 rounded-full overflow-hidden border border-border/80 shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+            <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col min-w-0">
+              <div className="font-display font-black tracking-tighter text-[22px] leading-none flex items-baseline select-none">
                 <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-md">DSA</span>
                 <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-md ml-[1px]">⁴⁰⁴</span>
               </div>
@@ -495,7 +493,10 @@ export function AppShell({ email, children }: { email: string; children: React.R
                 <activeNav.icon className="size-3.5 shrink-0" />
                 <span>{activeNav.label}</span>
               </button>
-              <Link href="/today" className="ml-2 flex items-center gap-1.5">
+              <Link href="/today" className="ml-2 flex items-center gap-2">
+                <div className="size-6 rounded-full overflow-hidden border border-border/80 shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+                  <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+                </div>
                 <div className="font-display font-black tracking-tighter text-[20px] leading-none flex items-baseline select-none">
                   <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">DSA</span>
                   <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm ml-[1px]">⁴⁰⁴</span>

@@ -11,7 +11,7 @@ import {
   type CompletedProblemSnapshot,
   type PublicStats,
 } from "@/lib/db";
-import { ExternalLink, Globe, CalendarDays, Code2, Flame, Sparkles } from "lucide-react";
+import { ExternalLink, Globe, Code2, Flame, Sparkles } from "lucide-react";
 import { SubmissionHeatmap } from "@/components/SubmissionHeatmap";
 import { BadgesGrid } from "@/components/BadgesGrid";
 import { computeBadges, currentStreak } from "@/lib/gamification";
@@ -167,9 +167,16 @@ export default function PublicProfilePage() {
         <p className="text-muted-foreground">This profile doesn&apos;t exist or hasn&apos;t been set up yet.</p>
         <Link
           href="/"
-          className="mt-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+          className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
-          Go to DSA⁴⁰⁴
+          <div className="size-5 rounded-full overflow-hidden border border-border shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+            <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+          </div>
+          <span>Go to</span>
+          <div className="font-display font-black tracking-tighter text-sm leading-none inline-flex items-baseline select-none">
+            <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">DSA</span>
+            <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent ml-[0.5px]">⁴⁰⁴</span>
+          </div>
         </Link>
       </div>
     );
@@ -179,9 +186,16 @@ export default function PublicProfilePage() {
     <div className="min-h-screen bg-background">
       {/* ── Branded top bar ── */}
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-10">
-        <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
-          <CalendarDays className="size-5 text-primary" aria-hidden="true" />
-          <span className="font-semibold text-sm">DSA⁴⁰⁴</span>
+        <div className="mx-auto flex max-w-3xl items-center gap-2.5 px-4 py-3">
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+            <div className="size-7 rounded-full overflow-hidden border border-border/80 shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+              <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+            </div>
+            <div className="font-display font-black tracking-tighter text-[20px] leading-none flex items-baseline select-none">
+              <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">DSA</span>
+              <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm ml-[1px]">⁴⁰⁴</span>
+            </div>
+          </Link>
           <span className="ml-auto text-xs text-muted-foreground">Public Profile</span>
         </div>
       </header>
@@ -429,8 +443,14 @@ export default function PublicProfilePage() {
         {/* ── Footer ── */}
         <footer className="pb-8 text-center text-xs text-muted-foreground">
           Built with{" "}
-          <Link href="/" className="text-primary hover:underline">
-            DSA⁴⁰⁴
+          <Link href="/" className="inline-flex items-center gap-1.5 align-middle hover:opacity-90 transition-opacity">
+            <div className="size-4 rounded-full overflow-hidden border border-border shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+              <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+            </div>
+            <span className="font-display font-black tracking-tighter text-xs leading-none flex items-baseline select-none">
+              <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">DSA</span>
+              <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent ml-[0.5px]">⁴⁰⁴</span>
+            </span>
           </Link>
           {" "}— Track your DSA journey.
         </footer>

@@ -115,6 +115,70 @@ function dayAllocation(): number[] {
   return alloc;
 }
 
+/**
+ * Teacher/student rhythm: Monday–Saturday cover new topics, and every Sunday
+ * (relative to the plan's own start date) is set aside as a Weekly Revision
+ * day listing that week's study days so the student can revisit and
+ * re-solve everything before moving on.
+ *
+ * This is factored out of `seedDays` so `rebalanceRemaining` can re-run the
+ * exact same interleaving after it rebuilds the tail of a plan — otherwise a
+ * rebalance (which flattens every remaining problem and repacks days purely
+ * by pace) would silently drop every Sunday revision day it touches.
+ *
+ * `startPosition` is the count of *active* (non-skipped) days that will sit
+ * ahead of `contentDays` in the final sequence once merged back in. Every
+ * entry — content or revision — consumes exactly one calendar day and one
+ * dayNumber, in lockstep, so `startPosition` doubles as both the Sunday/weekday
+ * offset and the base dayNumber to keep `revisionDayNumbers` correct; the
+ * caller's later `renumber()` call re-derives the same numbers as long as
+ * order is preserved, so this only needs to be self-consistent, not final.
+ */
+function interleaveWeeklyRevision(
+  contentDays: Day[],
+  startDate: string,
+  startPosition = 0,
+): Day[] {
+  const startDow = new Date(`${startDate}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  const days: Day[] = [];
+  let contentIdx = 0;
+  let weekDayNumbers: number[] = [];
+  let position = startPosition;
+  let dayNumber = startPosition;
+
+  while (contentIdx < contentDays.length) {
+    const isSunday = (startDow + position) % 7 === 0;
+    dayNumber += 1;
+    if (isSunday) {
+      days.push({
+        id: `revision-week-${Math.ceil(dayNumber / 7)}`,
+        dayNumber: 0,
+        date: startDate,
+        section: "Revision",
+        topic: "Weekly Revision",
+        subtopics: [],
+        problems: [],
+        checklist: [],
+        status: "pending",
+        notes: "",
+        revisionNotes: "",
+        skipped: false,
+        isRevisionDay: true,
+        revisionDayNumbers: weekDayNumbers,
+      });
+      weekDayNumbers = [];
+    } else {
+      const c = contentDays[contentIdx];
+      contentIdx += 1;
+      days.push(c);
+      weekDayNumbers.push(dayNumber);
+    }
+    position += 1;
+  }
+
+  return days;
+}
+
 export function seedDays(startDate = START_DATE): Day[] {
   const alloc = dayAllocation();
   const contentDays: Omit<Day, "dayNumber" | "date">[] = [];
@@ -143,46 +207,13 @@ export function seedDays(startDate = START_DATE): Day[] {
     }
   });
 
-  // Teacher/student rhythm: Monday–Saturday cover new topics, and every
-  // Sunday (relative to the plan's own start date) is set aside as a Weekly
-  // Revision day listing that week's study days so the student can revisit
-  // and re-solve everything before moving on.
-  const days: Day[] = [];
-  const startDow = new Date(`${startDate}T00:00:00Z`).getUTCDay(); // 0 = Sunday
-  let contentIdx = 0;
-  let weekDayNumbers: number[] = [];
-  let position = 0;
-  let dayNumber = 0;
-
-  while (contentIdx < contentDays.length) {
-    const isSunday = (startDow + position) % 7 === 0;
-    dayNumber += 1;
-    if (isSunday) {
-      days.push({
-        id: `revision-week-${Math.ceil(dayNumber / 7)}`,
-        dayNumber,
-        date: addDays(startDate, position),
-        section: "Revision",
-        topic: "Weekly Revision",
-        subtopics: [],
-        problems: [],
-        checklist: [],
-        status: "pending",
-        notes: "",
-        revisionNotes: "",
-        skipped: false,
-        isRevisionDay: true,
-        revisionDayNumbers: weekDayNumbers,
-      });
-      weekDayNumbers = [];
-    } else {
-      const c = contentDays[contentIdx];
-      contentIdx += 1;
-      days.push({ ...c, dayNumber, date: addDays(startDate, position) });
-      weekDayNumbers.push(dayNumber);
-    }
-    position += 1;
-  }
+  const placeholder: Day[] = contentDays.map((c) => ({ ...c, dayNumber: 0, date: startDate }));
+  const interleaved = interleaveWeeklyRevision(placeholder, startDate, 0);
+  const days: Day[] = interleaved.map((d, i) => ({
+    ...d,
+    dayNumber: i + 1,
+    date: addDays(startDate, i),
+  }));
 
   return renumber(days, startDate);
 }
@@ -253,15 +284,15 @@ export const isDayComplete = (d: Day) =>
   d.problems.length > 0 && d.problems.every((p) => p.done);
 
 export const STATUS_META: Record<Day["status"], { icon: string; label: string; className: string }> =
-  {
-    pending: { icon: "⏳", label: "Pending", className: "text-muted-foreground" },
-    in_progress: { icon: "◐", label: "In progress", className: "text-warning" },
-    completed: { icon: "✅", label: "Completed", className: "text-success" },
-    postponed: { icon: "⏸", label: "Postponed", className: "text-warning" },
-    merged: { icon: "🔀", label: "Merged", className: "text-accent-foreground" },
-    revision: { icon: "🔁", label: "Revision", className: "text-primary" },
-    skipped: { icon: "⛔", label: "Skipped", className: "text-muted-foreground" },
-  };
+{
+  pending: { icon: "⏳", label: "Pending", className: "text-muted-foreground" },
+  in_progress: { icon: "◐", label: "In progress", className: "text-warning" },
+  completed: { icon: "✅", label: "Completed", className: "text-success" },
+  postponed: { icon: "⏸", label: "Postponed", className: "text-warning" },
+  merged: { icon: "🔀", label: "Merged", className: "text-accent-foreground" },
+  revision: { icon: "🔁", label: "Revision", className: "text-primary" },
+  skipped: { icon: "⛔", label: "Skipped", className: "text-muted-foreground" },
+};
 /* ------------------------------------------------------------------ */
 /* Upgrade 5b: per-difficulty daily problem counts                      */
 /* ------------------------------------------------------------------ */
@@ -309,7 +340,11 @@ export function rebalanceRemaining(
   // Skipped days are never redistributed and never contribute to the pending
   // bag — they're preserved as-is, just pulled out of the reshuffle.
   const skippedRest = rest.filter((d) => d.skipped);
-  const activeRest = rest.filter((d) => !d.skipped);
+  // Old revision days in the touched range are dropped too — they carry no
+  // problems of their own, and fresh ones get re-interleaved below once the
+  // rebuilt content days are known, keeping the Sunday rhythm intact instead
+  // of silently losing every revision day the rebalance touches.
+  const activeRest = rest.filter((d) => !d.skipped && !d.isRevisionDay);
 
   // Flatten remaining work, keeping syllabus order. Anything already ticked in
   // a partially-done day stays with that problem so nothing is lost.
@@ -373,7 +408,14 @@ export function rebalanceRemaining(
     rebuilt[0] = { ...rebuilt[0], problems: [...carriedDone, ...rebuilt[0].problems] };
   }
 
-  return renumber([...keep, ...skippedRest, ...rebuilt], startDate, offset);
+  // Re-interleave Sunday Weekly Revision days into the freshly rebuilt tail,
+  // continuing the same Mon–Sat rhythm from wherever `keep`'s active days
+  // left off (skipped days don't consume a calendar slot, so they're
+  // excluded from the count).
+  const startPosition = keep.filter((d) => !d.skipped).length;
+  const interleaved = interleaveWeeklyRevision(rebuilt, startDate, startPosition);
+
+  return renumber([...keep, ...skippedRest, ...interleaved], startDate, offset);
 }
 
 /* ------------------------------------------------------------------ */

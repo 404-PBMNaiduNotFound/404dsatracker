@@ -8,7 +8,7 @@ import { PlanProvider } from '@/hooks/usePlan'
 import { SettingsProvider, useSettings } from '@/hooks/useSettings'
 import { ReminderRunner } from '@/components/ReminderRunner'
 import { AppShell } from '@/components/AppShell'
-import { hasExistingPlan, seedPlan } from '@/lib/db'
+import { hasExistingPlan, seedPlan, claimUsername } from '@/lib/db'
 import { saveSettings } from '@/lib/settings'
 import { QuoteLoader } from '@/components/QuoteLoader'
 import { OnboardingModal } from '@/components/OnboardingModal'
@@ -63,6 +63,7 @@ function PlanBoundary({
   userId: string
   children: React.ReactNode
 }) {
+  const router = useRouter()
   const { settings, update: updateSettings } = useSettings()
   const [checkingPlan, setCheckingPlan] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -81,15 +82,20 @@ function PlanBoundary({
     })
   }, [userId])
 
-  const handleOnboardingComplete = async (startDate: string, counts: DailyCounts) => {
-    // Save their chosen settings first
+  const handleOnboardingComplete = async (startDate: string, counts: DailyCounts, username: string) => {
+    // Claim their unique username first — checked for duplicates live in the
+    // modal, but claimUsername() re-checks atomically here before it's saved.
+    await claimUsername(userId, username)
+    // Save their chosen settings
     await updateSettings({ counts })
     await saveSettings(userId, { counts })
     // Seed the plan with their chosen start date and pace counts
     await seedPlan(userId, startDate, counts)
-    // Show the app
+    // Show the app — land on their Profile page first, then they can
+    // navigate anywhere else from there.
     setShowOnboarding(false)
     setPlanReady(true)
+    router.push('/profile')
   }
 
   if (checkingPlan) {

@@ -30,7 +30,7 @@ function groupIntoWeeks(days: Day[]): Day[][] {
     }
     const weekIndex = Math.floor(
       (new Date(day.date).getTime() - new Date(currentWeekStart).getTime()) /
-        (7 * 24 * 60 * 60 * 1000),
+      (7 * 24 * 60 * 60 * 1000),
     );
     if (weekIndex > 0 && currentWeek.length > 0) {
       result.push(currentWeek);
@@ -339,38 +339,9 @@ export default function WeeksPage() {
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {week.map((d, i) => {
-            if (d.isRevisionDay) {
-              const weekDays = (d.revisionDayNumbers ?? [])
-                .map((n) => days.find((x) => x.dayNumber === n))
-                .filter((x): x is Day => Boolean(x));
-              return (
-                <div
-                  key={`${d.date}-${i}`}
-                  className="col-span-full rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-3.5 space-y-2.5"
-                >
-                  <p className="text-xs font-bold text-primary">Sunday · Weekly Revision — revisit Mon–Sat</p>
-                  {weekDays.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No study days from this week yet.</p>
-                  ) : (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {weekDays.map((wd) => (
-                        <a
-                          key={wd.dayNumber}
-                          href={`/day/${wd.dayNumber}`}
-                          className="rounded-xl border border-border bg-secondary/60 hover:bg-secondary px-3 py-2 transition-colors block"
-                        >
-                          <p className="text-[11px] font-bold text-foreground truncate">Day {wd.dayNumber} · {wd.topic}</p>
-                          <p className="text-[10px] text-muted-foreground truncate">{wd.problems.length} problem{wd.problems.length === 1 ? "" : "s"}</p>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            return <DayCard key={`${d.date}-${i}`} day={d} />;
-          })}
+          {week.map((d, i) => (
+            <DayCard key={`${d.date}-${i}`} day={d} />
+          ))}
         </div>
         {/* Prev / Next week navigation */}
         <div className="flex justify-between pt-2">
@@ -434,26 +405,9 @@ export default function WeeksPage() {
                   <span className="ml-auto text-xs tabular-nums">{ws.done}/{ws.total}</span>
                 </h3>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {week.map((d, i) => {
-                    if (d.isRevisionDay) {
-                      const weekDays = (d.revisionDayNumbers ?? [])
-                        .map((n) => days.find((x) => x.dayNumber === n))
-                        .filter((x): x is Day => Boolean(x));
-                      return (
-                        <div key={`${d.date}-${i}`} className="col-span-full rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-3 space-y-2">
-                          <p className="text-xs font-bold text-primary">Sunday · Weekly Revision</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {weekDays.map((wd) => (
-                              <a key={wd.dayNumber} href={`/day/${wd.dayNumber}`} className="rounded-lg border border-border bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-[11px] font-medium transition-colors">
-                                Day {wd.dayNumber} · {wd.topic}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return <DayCard key={`${d.date}-${i}`} day={d} />;
-                  })}
+                  {week.map((d, i) => (
+                    <DayCard key={`${d.date}-${i}`} day={d} />
+                  ))}
                 </div>
               </div>
             );
@@ -524,26 +478,9 @@ export default function WeeksPage() {
                 </Button>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {week.map((d, i) => {
-                  if (d.isRevisionDay) {
-                    const weekDays = (d.revisionDayNumbers ?? [])
-                      .map((n) => days.find((x) => x.dayNumber === n))
-                      .filter((x): x is Day => Boolean(x));
-                    return (
-                      <div key={`${d.date}-${i}`} className="col-span-full rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-3 space-y-2">
-                        <p className="text-xs font-bold text-primary">Sunday · Weekly Revision</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {weekDays.map((wd) => (
-                            <a key={wd.dayNumber} href={`/day/${wd.dayNumber}`} className="rounded-lg border border-border bg-secondary/60 hover:bg-secondary px-2.5 py-1 text-[11px] font-medium transition-colors">
-                              Day {wd.dayNumber} · {wd.topic}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }
-                  return <DayCard key={`${d.date}-${i}`} day={d} />;
-                })}
+                {week.map((d, i) => (
+                  <DayCard key={`${d.date}-${i}`} day={d} />
+                ))}
               </div>
             </div>
           );

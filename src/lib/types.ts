@@ -87,6 +87,6 @@ export interface Day {
 // practice-problems.ts) changes shape or content in a way that requires every
 // user's stored plan to be regenerated. See `loadPlan` in db.ts, which
 // auto-reseeds any plan whose stored schemaVersion is behind this one.
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const weekNumber = (dayNumber: number) => Math.ceil(dayNumber / 7);

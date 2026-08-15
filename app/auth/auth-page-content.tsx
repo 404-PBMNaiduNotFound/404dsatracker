@@ -97,17 +97,10 @@ export function AuthPageContent() {
     return () => clearTimeout(t);
   }, [username, step]);
 
-  /** After any successful auth, route to the username step if one isn't set yet, otherwise continue in. */
+  /** After any successful auth, continue straight into the app. Username
+   * (for accounts that don't have one yet) is now collected as part of the
+   * onboarding flow — after preferences and start date — instead of here. */
   async function proceedAfterAuth(user: User, successMessage?: { title: string; description?: string }) {
-    const profile = await loadUserProfile(user.uid).catch(() => ({} as Partial<import("@/lib/db").UserProfile>));
-    if (!profile.username) {
-      setPendingUser(user);
-      setUsername("");
-      setDisplayName(user.displayName ?? "");
-      setUsernameStatus("idle");
-      setStep("username");
-      return;
-    }
     if (successMessage) toast.success(successMessage.title, { description: successMessage.description });
     router.push(next);
   }
@@ -177,7 +170,7 @@ export function AuthPageContent() {
       toast.error("Firebase not initialized. Check your configuration.");
       return;
     }
-    
+
     try {
       emailSchema.parse(email);
       passwordSchema.parse(password);
@@ -207,7 +200,7 @@ export function AuthPageContent() {
       toast.error("Firebase not initialized. Check your configuration.");
       return;
     }
-    
+
     try {
       emailSchema.parse(email);
       passwordSchema.parse(password);
@@ -234,7 +227,7 @@ export function AuthPageContent() {
       toast.error("Firebase not initialized. Check your configuration.");
       return;
     }
-    
+
     setBusy(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -264,10 +257,10 @@ export function AuthPageContent() {
       usernameStatus === "taken"
         ? "That username is already taken — choose another."
         : usernameStatus === "invalid"
-        ? "3-20 characters: lowercase letters, numbers, - or _ only."
-        : usernameStatus === "available"
-        ? "Available!"
-        : null;
+          ? "3-20 characters: lowercase letters, numbers, - or _ only."
+          : usernameStatus === "available"
+            ? "Available!"
+            : null;
 
     const canSubmit = usernameStatus === "available" && !usernameBusy;
 
@@ -307,8 +300,8 @@ export function AuthPageContent() {
                       usernameStatus === "taken" || usernameStatus === "invalid"
                         ? "border-red-500 focus-visible:ring-red-500 pr-9"
                         : usernameStatus === "available"
-                        ? "border-emerald-500 focus-visible:ring-emerald-500 pr-9"
-                        : "pr-9"
+                          ? "border-emerald-500 focus-visible:ring-emerald-500 pr-9"
+                          : "pr-9"
                     }
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && canSubmit) handleClaimUsername();
@@ -320,9 +313,8 @@ export function AuthPageContent() {
                 </div>
                 {statusMessage && (
                   <p
-                    className={`text-xs ${
-                      usernameStatus === "available" ? "text-emerald-500" : "text-red-500"
-                    }`}
+                    className={`text-xs ${usernameStatus === "available" ? "text-emerald-500" : "text-red-500"
+                      }`}
                   >
                     {statusMessage}
                   </p>
@@ -348,100 +340,108 @@ export function AuthPageContent() {
           className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           Back to home
         </Link>
-      <Card className="w-full max-w-md border-border bg-card">
-        <CardHeader>
-          <CardTitle>DSA⁴⁰⁴</CardTitle>
-          <CardDescription>
-            {mode === "signin" ? "Sign in to your account" : "Create a new account"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Tabs defaultValue="email" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="google">Google</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="email" className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={busy}
-                />
+        <Card className="w-full max-w-md border-border bg-card">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center gap-2.5 mb-1">
+              <div className="size-8 rounded-full overflow-hidden border border-border/80 shadow-md ring-1 ring-primary/20 bg-background shrink-0">
+                <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
               </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <PasswordInput
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={busy}
-                />
+              <div className="font-display font-black tracking-tighter text-2xl leading-none flex items-baseline select-none">
+                <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">DSA</span>
+                <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm ml-[1px]">⁴⁰⁴</span>
               </div>
+            </div>
+            <CardDescription>
+              {mode === "signin" ? "Sign in to your account" : "Create a new account"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Tabs defaultValue="email" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="email">Email</TabsTrigger>
+                <TabsTrigger value="google">Google</TabsTrigger>
+              </TabsList>
 
-              <Button
-                className="w-full"
-                disabled={busy}
-                onClick={mode === "signin" ? handleSignIn : handleSignUp}
-              >
-                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {mode === "signin" ? "Sign In" : "Create Account"}
-              </Button>
+              <TabsContent value="email" className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={busy}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  className="w-full text-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">Password</Label>
+                  <PasswordInput
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={busy}
+                  />
+                </div>
+
+                <Button
+                  className="w-full"
+                  disabled={busy}
+                  onClick={mode === "signin" ? handleSignIn : handleSignUp}
                 >
-                  {mode === "signin"
-                    ? "Don't have an account? Sign up"
-                    : "Already have an account? Sign in"}
-                </button>
+                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {mode === "signin" ? "Sign In" : "Create Account"}
+                </Button>
 
-                {mode === "signin" && (
-                  resetSent ? (
-                    <p className="text-center text-sm text-success">
-                      ✓ Reset email sent — check your inbox.
-                    </p>
-                  ) : (
-                    <button
-                      type="button"
-                      className="w-full text-sm text-primary hover:underline disabled:opacity-50"
-                      disabled={busy}
-                      onClick={handleForgotPassword}
-                    >
-                      Forgot password?
-                    </button>
-                  )
-                )}
-              </div>
-            </TabsContent>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    className="w-full text-sm text-muted-foreground hover:text-foreground"
+                    onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+                  >
+                    {mode === "signin"
+                      ? "Don't have an account? Sign up"
+                      : "Already have an account? Sign in"}
+                  </button>
 
-            <TabsContent value="google" className="pt-4">
-              <Button
-                variant="outline"
-                className="w-full"
-                disabled={busy}
-                onClick={handleGoogleSignIn}
-              >
-                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign in with Google
-              </Button>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                  {mode === "signin" && (
+                    resetSent ? (
+                      <p className="text-center text-sm text-success">
+                        ✓ Reset email sent — check your inbox.
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full text-sm text-primary hover:underline disabled:opacity-50"
+                        disabled={busy}
+                        onClick={handleForgotPassword}
+                      >
+                        Forgot password?
+                      </button>
+                    )
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="google" className="pt-4">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={busy}
+                  onClick={handleGoogleSignIn}
+                >
+                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Sign in with Google
+                </Button>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

@@ -1538,7 +1538,10 @@ export default function Home() {
         {/* Landing Page Branded Header */}
         <header className="border-b border-border/50 bg-background/95 backdrop-blur sticky top-0 z-50">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="size-7 rounded-full overflow-hidden border border-border/80 shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+                <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+              </div>
               <div className="font-display font-black tracking-tighter text-[24px] leading-none flex items-baseline select-none">
                 <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">DSA</span>
                 <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm ml-[1px]">⁴⁰⁴</span>
