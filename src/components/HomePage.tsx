@@ -106,6 +106,18 @@ function HeroSection() {
       />
 
       <div className="relative mx-auto max-w-5xl px-4">
+        {/* DSA 404 Motto Badge */}
+        <div className="mb-6 inline-flex flex-col rounded-2xl border border-primary/30 bg-primary/10 px-5 py-3 text-left backdrop-blur-md shadow-md">
+          <span className="font-mono text-xs sm:text-sm font-black tracking-wider text-primary uppercase">
+            DSA 404
+          </span>
+          <div className="mt-1.5 font-mono text-xs sm:text-sm font-semibold text-foreground/90 space-y-0.5">
+            <p><span className="text-muted-foreground">Problem not found?</span> <span className="text-primary font-bold">Find it.</span></p>
+            <p><span className="text-muted-foreground">Problem found?</span> <span className="text-amber-400 font-bold">Solve it.</span></p>
+            <p><span className="text-muted-foreground">Problem solved?</span> <span className="text-emerald-400 font-bold">Master it.</span></p>
+          </div>
+        </div>
+
         <p className="mb-4 font-mono text-xs tracking-[0.2em] text-primary uppercase">
           Core 404 · {REAL_TOTAL_PROBLEMS} problems · {REAL_SECTIONS_COUNT} topics · {REAL_TOTAL_DAYS} days
         </p>
@@ -524,13 +536,13 @@ function FeatureWalkthrough() {
     {
       icon: ListTodo,
       color: "bg-green-500/10 text-green-600 dark:text-green-400",
-      title: "Today — Your daily command centre",
+      title: "Today's Workspace — Your daily command centre",
       bullets: [
         'See today\'s topic and section (e.g. "Binary Search › BS on 1D Arrays")',
         "Check off each problem — Easy (15 min), Medium (30 min), Hard (45 min) estimates shown",
         "12-step checklist: Watch video → Brute force → Optimise → Code → Submit → Push to GitHub",
         "Write personal notes that sync to the cloud",
-        "Today's tab also shows today's live & upcoming contests — no tab switching needed",
+        "Today's Workspace tab also shows today's live & upcoming contests — no tab switching needed",
         "One-click ChatGPT explain button pre-fills the prompt for the day's topic",
       ],
       mock: null,
@@ -591,7 +603,7 @@ function FeatureWalkthrough() {
       color: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
       title: "Review — Your personal \"revisit later\" list",
       bullets: [
-        "Bookmark any problem in Today with one tap",
+        "Bookmark any problem in Today's Workspace with one tap",
         "All bookmarks from all 120 days appear here, sorted by day",
         "Shows which day and topic each problem belongs to",
         "Clear the bookmark once you've mastered it",
@@ -607,7 +619,7 @@ function FeatureWalkthrough() {
         "Contests sorted by start time — live contests float to the top with a green indicator",
         "Duration shown for every contest so you can plan around it",
         "One-click link opens the contest page directly on the platform",
-        "Today's tab also shows a mini contest strip — today's live & upcoming rounds at a glance",
+        "Today's Workspace tab also shows a mini contest strip — today's live & upcoming rounds at a glance",
       ],
       mock: <ContestMock />,
     },

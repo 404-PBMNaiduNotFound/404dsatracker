@@ -177,9 +177,17 @@ function HeroSection() {
               <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-md ml-[2px]">⁴⁰⁴</span>
             </div>
           </div>
-          <p className="font-mono text-xs sm:text-sm tracking-[0.15em] text-primary uppercase font-bold bg-primary/10 px-3 py-1.5 rounded-md border border-primary/20 mt-2">
-            404 Distractions. 1 Goal: DSA. 🔥
-          </p>
+        {/* DSA 404 Motto Badge */}
+        <div className="mt-4 mb-2 inline-flex flex-col rounded-2xl border border-primary/30 bg-primary/10 px-5 py-3 text-left backdrop-blur-md shadow-md">
+          <span className="font-mono text-xs sm:text-sm font-black tracking-wider text-primary uppercase">
+            DSA 404
+          </span>
+          <div className="mt-1.5 font-mono text-xs sm:text-sm font-semibold text-foreground/90 space-y-0.5">
+            <p><span className="text-muted-foreground">Problem not found?</span> <span className="text-primary font-bold">Find it.</span></p>
+            <p><span className="text-muted-foreground">Problem found?</span> <span className="text-amber-400 font-bold">Solve it.</span></p>
+            <p><span className="text-muted-foreground">Problem solved?</span> <span className="text-emerald-400 font-bold">Master it.</span></p>
+          </div>
+        </div>
         </div>
 
         <h1 className="hero-headline font-display text-4xl font-bold tracking-tight sm:text-6xl leading-tight max-w-3xl">
@@ -350,7 +358,7 @@ function HowItWorks() {
     {
       icon: CalendarDays,
       title: "Sign up & get your plan",
-      body: "The moment you sign up, your personalized schedule is generated from the Core 404 DSA roadmap. All 338 problems are distributed across 42 topics in study order, starting from the day you join.",
+      body: "Sign up and pick a unique username — that's your shareable public profile URL. The moment you're in, your personalized schedule is generated from the Core 404 DSA roadmap. All 338 problems are distributed across 42 topics in study order, starting from the day you join.",
       step: "01",
     },
     {
@@ -682,16 +690,17 @@ const EXPLORER_PAGES = [
     key: "today",
     icon: ListTodo,
     color: "bg-green-500/10 text-green-600 dark:text-green-400",
-    title: "Today",
+    title: "Today's Workspace",
     tagline: "Your daily command centre",
     bullets: [
       { text: 'See today\'s topic and section, e.g. "Binary Search › BS on 1D Arrays"' },
       { text: "Check off each problem — Easy (15 min), Medium (30 min), Hard (45 min) estimates shown" },
       { text: "12-step checklist: Watch video → Brute force → Optimise → Code → Submit → Push to GitHub" },
       { text: "Write personal notes that sync to the cloud" },
-      { text: "Today's live & upcoming contests show right here — no tab switching" },
+      { text: "Today's Workspace live & upcoming contests show right here — no tab switching" },
       { text: "One-click ChatGPT explain button, pre-filled for the day's topic" },
       { text: "Google Search button on every problem for instant tutorials" },
+      { text: "Global Cmd/Ctrl+K search jumps to any problem, page, or setting instantly", isNew: true },
       { text: "New resizable desktop sidebar and swipeable mobile drawer", isNew: true },
     ],
     mock: null,
@@ -707,7 +716,7 @@ const EXPLORER_PAGES = [
       { text: "Each week shows a progress bar: X / Y problems done" },
       { text: "Jump directly into any day by clicking its card" },
       { text: "Skip future days you know you'll miss — schedule adjusts cleanly" },
-      { text: "Colour-coded statuses: pending / completed / postponed / revision / skipped" },
+      { text: "Colour-coded statuses: pending / in progress / completed / postponed / merged / revision / skipped" },
     ],
     mock: <WeekMock />,
   },
@@ -762,7 +771,7 @@ const EXPLORER_PAGES = [
     title: "Review",
     tagline: "Bookmarks & topic reminders",
     bullets: [
-      { text: "Bookmark any problem in Today with one tap" },
+      { text: "Bookmark any problem in Today's Workspace with one tap" },
       { text: "Set custom date & time reminders to revise specific DSA topics" },
       { text: "Real-time browser notifications and email alerts at the scheduled time" },
       { text: "All bookmarks appear here, sorted by day" },
@@ -776,11 +785,11 @@ const EXPLORER_PAGES = [
     title: "Contests",
     tagline: "Never miss a CP round",
     bullets: [
-      { text: "Live, upcoming, and missed contests from LeetCode, Codeforces, CodeChef, AtCoder & HackerRank" },
+      { text: "Live, upcoming, and missed contests from LeetCode, Codeforces, CodeChef, HackerRank, HackerEarth & ICPC" },
       { text: "Automatic 30-minute email reminder before any contest starts" },
       { text: "Sorted by start time — live contests float to the top with a green indicator" },
       { text: "Duration shown for every contest so you can plan around it" },
-      { text: "A mini contest strip on Today keeps live & upcoming rounds one glance away" },
+      { text: "A mini contest strip on Today's Workspace keeps live & upcoming rounds one glance away" },
     ],
     mock: <ContestMock />,
   },
@@ -808,7 +817,8 @@ const EXPLORER_PAGES = [
     tagline: "Your public link & badges",
     bullets: [
       { text: "Customisable profile with your avatar and a premium cover banner" },
-      { text: "Shareable public URL (e.g. /profile/your-uid) to show off to recruiters" },
+      { text: "Pick a unique username at signup — instantly your shareable public URL", isNew: true },
+      { text: "Shareable public URL (e.g. /profile/alex-turner) to show off to recruiters" },
       { text: "Add your own custom links — Codeforces, GitHub, and more — to your public profile", isNew: true },
       { text: "Earn and display gamified achievement badges as you progress" },
     ],
@@ -858,7 +868,7 @@ function PageExplorer() {
         </div>
         <h2 className="mt-4 font-display text-3xl font-bold tracking-tight">Peek inside before you sign up</h2>
         <p className="mt-2 text-muted-foreground">
-          Eleven pages, eleven cards. Flip one open and see it working — no tour, no guesswork, just the real thing.
+          Eleven features, eleven cards. Flip one open and see it working — no tour, no guesswork, just the real thing.
         </p>
 
         {/* horizontal, scrollable row of flip-cards */}

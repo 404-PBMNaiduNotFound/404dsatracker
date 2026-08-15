@@ -8,33 +8,70 @@ import {
   type CodeSubmission,
 } from "@/lib/db";
 
-/**
- * Manages which problems in the Problems tab the user has marked complete.
- * Completions and code submissions are stored in Firestore at users/{uid}/settings/problemCompletions
- */
+function getLocalSubmissionsKey(uid: string) {
+  return `dsa_code_submissions_${uid}`;
+}
+
+function getLocalCompletionsKey(uid: string) {
+  return `dsa_completed_problems_${uid}`;
+}
+
+function getLocalSubmissions(uid: string): Record<string, CodeSubmission> {
+  if (typeof window === "undefined" || !uid) return {};
+  try {
+    const raw = localStorage.getItem(getLocalSubmissionsKey(uid));
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function getLocalCompletions(uid: string): Set<string> {
+  if (typeof window === "undefined" || !uid) return new Set();
+  try {
+    const raw = localStorage.getItem(getLocalCompletionsKey(uid));
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
 export function useProblemCompletions() {
   const { user } = useAuth();
-  const uid = user?.uid ?? null;
+  const uid = user?.uid ?? "";
 
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
-  const [submissions, setSubmissions] = useState<Record<string, CodeSubmission>>({});
+  const [completed, setCompleted] = useState<Set<string>>(() => (uid ? getLocalCompletions(uid) : new Set()));
+  const [submissions, setSubmissions] = useState<Record<string, CodeSubmission>>(() => (uid ? getLocalSubmissions(uid) : {}));
   const [loading, setLoading] = useState(true);
 
-  // Load on mount / user change
+  // Load on mount / user change — strictly scoped to active user ID
   useEffect(() => {
-    if (!uid) {
-      setCompleted(new Set());
+    let isMounted = true;
+
+    if (!user || !user.uid) {
       setSubmissions({});
+      setCompleted(new Set());
       setLoading(false);
       return;
     }
-    let isMounted = true;
+
+    const currentUid = user.uid;
     setLoading(true);
-    Promise.all([loadProblemCompletions(uid), loadCodeSubmissions(uid)])
+
+    const localSubs = getLocalSubmissions(currentUid);
+    const localComp = getLocalCompletions(currentUid);
+
+    // Set user-scoped local state immediately
+    setSubmissions(localSubs);
+    setCompleted(localComp);
+
+    Promise.all([loadProblemCompletions(currentUid), loadCodeSubmissions(currentUid)])
       .then(([set, subMap]) => {
         if (!isMounted) return;
-        setCompleted(set);
-        setSubmissions(subMap);
+        const mergedSubs = { ...localSubs, ...subMap };
+        const mergedComp = new Set([...Array.from(localComp), ...Array.from(set)]);
+        setCompleted(mergedComp);
+        setSubmissions(mergedSubs);
       })
       .catch((e) => {
         console.warn("Failed to load problem completions from Firestore:", e);
@@ -46,47 +83,70 @@ export function useProblemCompletions() {
     return () => {
       isMounted = false;
     };
-  }, [uid]);
+  }, [user]);
 
-  /** Submit code for a problem, marking it completed. */
+  /** Submit code for a problem, marking it completed and persisting locally and in DB. */
   const submitCode = useCallback(
     async (name: string, code: string, link: string = "") => {
-      if (!uid) return;
+      if (!user?.uid) return;
+      const currentUid = user.uid;
+
       const sub: CodeSubmission = {
         code,
         link,
         submittedAt: new Date().toISOString(),
       };
-      setSubmissions((prev) => ({ ...prev, [name]: sub }));
+
+      setSubmissions((prev) => {
+        const next = { ...prev, [name]: sub };
+        if (typeof window !== "undefined") {
+          localStorage.setItem(getLocalSubmissionsKey(currentUid), JSON.stringify(next));
+        }
+        return next;
+      });
+
       setCompleted((prev) => {
         const next = new Set(prev);
         next.add(name);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(getLocalCompletionsKey(currentUid), JSON.stringify(Array.from(next)));
+        }
         return next;
       });
-      await saveCodeSubmission(uid, name, sub, completed);
+
+      await saveCodeSubmission(currentUid, name, sub, completed).catch(() => {});
     },
-    [uid, completed],
+    [user, completed],
   );
 
   /** Remove code submission for a problem, unmarking it as completed. */
   const removeCode = useCallback(
     async (name: string) => {
-      if (!uid) return;
+      if (!user?.uid) return;
+      const currentUid = user.uid;
+
       setSubmissions((prev) => {
         const next = { ...prev };
         delete next[name];
+        if (typeof window !== "undefined") {
+          localStorage.setItem(getLocalSubmissionsKey(currentUid), JSON.stringify(next));
+        }
         return next;
       });
+
       setCompleted((prev) => {
         const next = new Set(prev);
         next.delete(name);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(getLocalCompletionsKey(currentUid), JSON.stringify(Array.from(next)));
+        }
         return next;
       });
-      await removeCodeSubmission(uid, name, completed);
+
+      await removeCodeSubmission(currentUid, name, completed).catch(() => {});
     },
-    [uid, completed],
+    [user, completed],
   );
 
   return { completed, submissions, loading, submitCode, removeCode };
 }
-

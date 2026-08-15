@@ -7,12 +7,20 @@ import { EXTRA_PROBLEMS, type Sheet } from "@/lib/extra-problems-data";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ExternalLink, Search, X, ArrowUpDown, Filter, ChevronLeft, ChevronRight, Sparkles, Code2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ExternalLink, Search, X, ArrowUpDown, Filter, ChevronLeft, ChevronRight, Sparkles, Code2, Link2, Video, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Difficulty } from "@/lib/types";
 import { useProblemCompletions } from "@/hooks/useProblemCompletions";
 import { CodeModal } from "@/components/CodeModal";
 import type { CodeSubmission } from "@/lib/db";
+import { getChatGPTAiPromptUrl } from "@/lib/aiTutorPrompt";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -97,44 +105,49 @@ function canonicalPlatform(raw: string): Platform {
 export function platformSearchLink(name: string, platform: Platform): string {
   const q = encodeURIComponent(name);
   switch (platform) {
-    case "LeetCode":   return `https://leetcode.com/problemset/?search=${q}`;
-    case "GFG":        return `https://www.geeksforgeeks.org/explore?search=${q}`;
+    case "LeetCode": return `https://leetcode.com/problemset/?search=${q}`;
+    case "GFG": return `https://www.geeksforgeeks.org/explore?search=${q}`;
     case "HackerRank": return `https://www.hackerrank.com/domains/data-structures`;
     case "CodeStudio": return `https://www.naukri.com/code360/search?q=${q}`;
-    case "CodeChef":   return `https://www.codechef.com/practice?search=${q}`;
-    case "AtCoder":    return `https://atcoder.jp/tasks?keyword=${q}`;
+    case "CodeChef": return `https://www.codechef.com/practice?search=${q}`;
+    case "AtCoder": return `https://atcoder.jp/tasks?keyword=${q}`;
     case "Codeforces": return `https://codeforces.com/problemset?query=${q}`;
-    case "TUF":        return `https://takeuforward.org/?s=${q}`;
-    default:           return `https://leetcode.com/problemset/?search=${q}`;
+    case "TUF": return `https://takeuforward.org/?s=${q}`;
+    default: return `https://leetcode.com/problemset/?search=${q}`;
   }
 }
 
+function googleSearchUrl(problemName: string) {
+  const query = `${problemName} DSA solution explanation site:leetcode.com OR site:geeksforgeeks.org OR site:takeuforward.org`;
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+}
+
 export const PLATFORM_META: Record<Platform, { label: string; color: string; bg: string; dot: string }> = {
-  All:        { label: "All",           color: "text-foreground",    bg: "bg-secondary",      dot: "bg-muted-foreground" },
-  LeetCode:   { label: "LeetCode",      color: "text-[#FFA116]",     bg: "bg-[#FFA116]/10",   dot: "bg-[#FFA116]" },
-  CodeStudio: { label: "CodeStudio",    color: "text-[#F97316]",     bg: "bg-[#F97316]/10",   dot: "bg-[#F97316]" },
-  GFG:        { label: "GeeksforGeeks", color: "text-[#2F8D46]",     bg: "bg-[#2F8D46]/10",   dot: "bg-[#2F8D46]" },
-  CodeChef:   { label: "CodeChef",      color: "text-[#5B4638]",     bg: "bg-[#5B4638]/10",   dot: "bg-[#5B4638]" },
-  HackerRank: { label: "HackerRank",    color: "text-[#2EC866]",     bg: "bg-[#2EC866]/10",   dot: "bg-[#2EC866]" },
-  AtCoder:    { label: "AtCoder",       color: "text-[#333333]",     bg: "bg-muted",          dot: "bg-foreground" },
-  Codeforces: { label: "Codeforces",    color: "text-[#1F8ACB]",     bg: "bg-[#1F8ACB]/10",   dot: "bg-[#1F8ACB]" },
-  TUF:        { label: "TUF",           color: "text-primary",       bg: "bg-primary/10",     dot: "bg-primary" },
-  Other:      { label: "Other",         color: "text-muted-foreground", bg: "bg-secondary",   dot: "bg-muted-foreground" },
+  All: { label: "All", color: "text-foreground", bg: "bg-secondary", dot: "bg-muted-foreground" },
+  LeetCode: { label: "LeetCode", color: "text-[#FFA116]", bg: "bg-[#FFA116]/10", dot: "bg-[#FFA116]" },
+  CodeStudio: { label: "CodeStudio", color: "text-[#F97316]", bg: "bg-[#F97316]/10", dot: "bg-[#F97316]" },
+  GFG: { label: "GeeksforGeeks", color: "text-[#2F8D46]", bg: "bg-[#2F8D46]/10", dot: "bg-[#2F8D46]" },
+  CodeChef: { label: "CodeChef", color: "text-[#5B4638]", bg: "bg-[#5B4638]/10", dot: "bg-[#5B4638]" },
+  HackerRank: { label: "HackerRank", color: "text-[#2EC866]", bg: "bg-[#2EC866]/10", dot: "bg-[#2EC866]" },
+  AtCoder: { label: "AtCoder", color: "text-[#333333]", bg: "bg-muted", dot: "bg-foreground" },
+  Codeforces: { label: "Codeforces", color: "text-[#1F8ACB]", bg: "bg-[#1F8ACB]/10", dot: "bg-[#1F8ACB]" },
+  TUF: { label: "TUF", color: "text-primary", bg: "bg-primary/10", dot: "bg-primary" },
+  Other: { label: "Other", color: "text-muted-foreground", bg: "bg-secondary", dot: "bg-muted-foreground" },
 };
 
 const DIFF_META: Record<string, { label: string; color: string; bg: string }> = {
-  Easy:   { label: "Easy",   color: "text-easy",   bg: "bg-easy/10" },
-  Medium: { label: "Medium", color: "text-medium",  bg: "bg-medium/10" },
-  Hard:   { label: "Hard",   color: "text-hard",    bg: "bg-hard/10" },
+  Easy: { label: "Easy", color: "text-easy", bg: "bg-easy/10" },
+  Medium: { label: "Medium", color: "text-medium", bg: "bg-medium/10" },
+  Hard: { label: "Hard", color: "text-hard", bg: "bg-hard/10" },
   Advanced: { label: "Advanced", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10" },
   Expert: { label: "Expert", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" },
   "Multiple Choice": { label: "MCQ", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
 };
 
 const SHEET_META: Record<SheetFilter, { color: string; bg: string }> = {
-  "All":               { color: "text-foreground",  bg: "bg-secondary" },
-  "Core 404":       { color: "text-primary",     bg: "bg-primary/10" },
-  "DSA 500 Practice":  { color: "text-[#00B8A3]",   bg: "bg-[#00B8A3]/10" },
+  "All": { color: "text-foreground", bg: "bg-secondary" },
+  "Core 404": { color: "text-primary", bg: "bg-primary/10" },
+  "DSA 500 Practice": { color: "text-[#00B8A3]", bg: "bg-[#00B8A3]/10" },
 };
 
 // ─── Unified flat problem type ───────────────────────────────────────────────
@@ -153,7 +166,7 @@ function buildAllProblems(): FlatProblem[] {
   let globalId = 1;
   const a2z: FlatProblem[] = SECTIONS.flatMap((sec) =>
     sec.problems
-            .map((p) => {
+      .map((p) => {
         const plat = canonicalPlatform(p.p);
         const link = p.l!; // every core problem now carries a verified link (see master-problems.ts)
         return {
@@ -200,7 +213,7 @@ function countBy<T>(arr: T[], key: (x: T) => string): Record<string, number> {
 // ─── External link helpers ───────────────────────────────────────────────────
 
 function youtubeSearchUrl(problemName: string) {
-  const query = `${problemName}  DSA solution brute force better optimal approach explained C++ Java Python Striver Take U Forward NeetCode raisingbrains tutorialpoint solutions`;
+  const query = `${problemName} solution intuition explained NeetCode OR Striver`;
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 
@@ -292,53 +305,99 @@ function ProblemItem({
           {pm.label}
         </span>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Direct Link to Official Platform */}
+          {problem.link && (
+            <a
+              href={problem.link}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-1 text-xs font-semibold text-foreground transition-colors"
+              title={`Open official page on ${problem.platform}`}
+            >
+              <span className="hidden xs:inline">{problem.platform}</span>
+              <ExternalLink className="size-3 text-muted-foreground" />
+            </a>
+          )}
+
+          {/* Links Dropdown Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-1 text-xs font-semibold text-foreground transition-colors"
+                title="All problem links & resources"
+              >
+                <Link2 className="size-3.5 text-sky-400" />
+                <span>Links</span>
+                <ChevronDown className="size-3 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl border border-white/15 bg-card/95 backdrop-blur-2xl p-1 shadow-2xl">
+              {problem.link && (
+                <DropdownMenuItem asChild>
+                  <a href={problem.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                    <ExternalLink className="size-3.5 text-sky-400" />
+                    <span>{problem.platform} Official Page</span>
+                  </a>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem asChild>
+                <a href={getChatGPTAiPromptUrl(problem.name)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                  <Sparkles className="size-3.5 text-emerald-400" />
+                  <span>ChatGPT AI Tutor & Prompt</span>
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={youtubeSearchUrl(problem.name)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <Video className="size-3.5 text-rose-500" />
+                  <span>YouTube Solution Video</span>
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={googleSearchUrl(problem.name)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <Search className="size-3.5 text-sky-400" />
+                  <span>Google Search Solution</span>
+                </a>
+              </DropdownMenuItem>
+              {submission?.code && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setModalOpen(true)} className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
+                    <Code2 className="size-3.5 text-emerald-400" />
+                    <span>View Submitted Code</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Solve Button */}
+          <a
+            href={getChatGPTAiPromptUrl(problem.name)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+            title="Solve with Interactive ChatGPT DSA AI Tutor"
+          >
+            <Sparkles className="size-3 text-emerald-400" />
+            Solve
+          </a>
+
+          {/* Code Button */}
           <button
             type="button"
             onClick={() => setModalOpen(true)}
             title={done ? "View or edit your submitted code for this problem" : "Add code solution to mark problem as completed"}
             className={cn(
-              "flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition-colors",
+              "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors",
               done
-                ? "border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
-                : "border-border text-muted-foreground hover:border-primary hover:text-primary",
+                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25"
+                : "border border-border text-muted-foreground hover:border-primary hover:text-primary",
             )}
           >
             <Code2 className="size-3" />
             <span>Code</span>
           </button>
-
-          <a
-            href={problem.link}
-            target="_blank"
-            rel="noreferrer"
-            className="ml-1 flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-          >
-            <ExternalLink className="size-3" />
-            Solve
-          </a>
-          <a
-            href={youtubeSearchUrl(problem.name)}
-            target="_blank"
-            rel="noreferrer"
-            title={`Search YouTube for ${problem.name} solution`}
-            className="flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-red-500 transition-colors hover:border-red-500 hover:text-red-600"
-          >
-            <svg className="size-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-            </svg>
-            YouTube
-          </a>
-          <a
-            href={chatGptProblemUrl(problem.name)}
-            target="_blank"
-            rel="noreferrer"
-            title={`Ask ChatGPT to explain ${problem.name}`}
-            className="flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-green-600 transition-colors hover:border-green-500 hover:text-green-700"
-          >
-            <Sparkles className="size-3" />
-            ChatGPT
-          </a>
         </div>
       </li>
 

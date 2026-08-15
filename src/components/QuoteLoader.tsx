@@ -36,7 +36,7 @@ export function QuoteLoader({
             <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-md ml-[2px]">⁴⁰⁴</span>
           </div>
           <div className="font-mono text-sm sm:text-[15px] font-bold tracking-tight mt-4 text-foreground/80">
-            404 Distractions. 1 Goal: DSA. 🔥
+            Find. Solve. Master. 🔥
           </div>
         </div>
 

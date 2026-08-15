@@ -138,17 +138,22 @@ export const CORE_SECTIONS: CoreSection[] = [
     ],
   },
   {
-    topicNo: 4,
+    // NOTE: topicNo intentionally reassigned to 42 (was erroneously 4, colliding with
+    // "Arrays — Basics" above). IDs below were CORE-004-01..07, colliding with the
+    // Arrays section's IDs of the same name — fixed to CORE-042-01..07, a range not
+    // used anywhere else in this file. topicNo/id are not read anywhere outside this
+    // file for ordering, so this only fixes the collision and changes nothing else.
+    topicNo: 42,
     topic: "Strings — Basics",
     subtopics: ["Easy String", "Medium String", "Palindrome", "Root-to-Leaf Path", "String Manipulation"],
     problems: [
-      { id: "CORE-004-01", name: "Same Strings", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/program-to-check-if-two-strings-are-same-or-not/", pattern: "Easy String", level: "Level 1" },
-      { id: "CORE-004-02", name: "Multiply Large Numbers", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/multiply-large-numbers-represented-as-strings/", pattern: "Medium String", level: "Level 1" },
-      { id: "CORE-004-03", name: "URLify", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/urlify-a-given-string-replace-spaces/", pattern: "Medium String", level: "Level 1" },
-      { id: "CORE-004-04", name: "Palindrome", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/palindrome-string/", pattern: "Easy String", level: "Level 1" },
-      { id: "CORE-004-05", name: "Smallest string starting from Leaf", difficulty: "Easy", platform: "LeetCode", link: "https://leetcode.com/problems/smallest-string-starting-from-leaf", pattern: "Root-to-Leaf Path", level: "Level 1" },
-      { id: "CORE-004-06", name: "Manacher's Algorithm", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/manachers-algorithm-linear-time-longest-palindromic-substring-part-1/", pattern: "String Manipulation", level: "Level 1" },
-      { id: "CORE-004-07", name: "Longest Prefix Suffix", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/longest-prefix-also-suffix/", pattern: "String Manipulation", level: "Level 1" },
+      { id: "CORE-042-01", name: "Same Strings", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/program-to-check-if-two-strings-are-same-or-not/", pattern: "Easy String", level: "Level 1" },
+      { id: "CORE-042-02", name: "Multiply Large Numbers", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/multiply-large-numbers-represented-as-strings/", pattern: "Medium String", level: "Level 1" },
+      { id: "CORE-042-03", name: "URLify", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/urlify-a-given-string-replace-spaces/", pattern: "Medium String", level: "Level 1" },
+      { id: "CORE-042-04", name: "Palindrome", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/palindrome-string/", pattern: "Easy String", level: "Level 1" },
+      { id: "CORE-042-05", name: "Smallest string starting from Leaf", difficulty: "Easy", platform: "LeetCode", link: "https://leetcode.com/problems/smallest-string-starting-from-leaf", pattern: "Root-to-Leaf Path", level: "Level 1" },
+      { id: "CORE-042-06", name: "Manacher's Algorithm", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/manachers-algorithm-linear-time-longest-palindromic-substring-part-1/", pattern: "String Manipulation", level: "Level 1" },
+      { id: "CORE-042-07", name: "Longest Prefix Suffix", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/dsa/longest-prefix-also-suffix/", pattern: "String Manipulation", level: "Level 1" },
     ],
   },
   {

@@ -59,9 +59,10 @@ export default function TopicsPage() {
 
   // Group days by level → section → day
   const levels = useMemo(() => {
-    // Build section map
+    // Build section map — exclude revision days so "Revision" never
+    // appears as a pseudo-section in the topic accordion.
     const sectionMap = new Map<string, { days: Day[]; level: string }>();
-    days.forEach((d) => {
+    days.filter((d) => !d.isRevisionDay).forEach((d) => {
       const existing = sectionMap.get(d.section);
       if (existing) {
         existing.days.push(d);

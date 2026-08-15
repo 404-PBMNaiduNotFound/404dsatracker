@@ -260,8 +260,7 @@ export function SubmissionHeatmap({ data, detailMap }: SubmissionHeatmapProps) {
       </div>
 
       {/* ── Heatmap Footer / Legend ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground pt-1">
-        <span>Showing 12 months view (3 months on mobile). Use &lt; &gt; buttons to scroll months.</span>
+      <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground pt-1">
         <div className="flex items-center gap-1.5">
           <span>Less</span>
           {[0, 1, 2, 3, 4].map((lvl) => (

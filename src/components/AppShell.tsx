@@ -43,25 +43,28 @@ import {
   X,
   LogOut,
   GripVertical,
+  Sparkles,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeCustomizer } from "../../app/theme-customizer-context";
 import { ThemeCustomizerPanel } from "../../app/theme-customizer-panel";
+import { GlobalSearchModal } from "@/components/GlobalSearchModal";
 
 const NAV = [
-  { to: "/today", label: "Today", icon: ListTodo, hint: "Your daily checklist — topic, problems, notes, and today's contests at a glance." },
-  { to: "/review", label: "Review", icon: BookmarkCheck, hint: "Problems you bookmarked for a second look — sorted by day and section." },
-  { to: "/backlog", label: "Backlog", icon: CalendarDays, hint: "Past days you haven't fully completed. Insert a revision day to catch up." },
+  { to: "/today", label: "Today's Workspace", icon: Sparkles, hint: "Your daily topic, core problems, streak, and activity heatmap." },
   { to: "/problems", label: "Problems", icon: Code2, hint: "838+ problems from 2 curated sets — filter by platform, difficulty, or sheet." },
   { to: "/topics", label: "Topic View", icon: LayoutGrid, hint: "All 42 Core 404 topics. Expand any topic, skip topics, track progress." },
   { to: "/weeks", label: "Week View", icon: CalendarRange, hint: "Your 17-week roadmap. See every day's status and jump to any day directly." },
-  { to: "/contests", label: "Contests", icon: Trophy, hint: "Live, upcoming & missed CP contests from LeetCode, Codeforces, CodeChef, AtCoder, HackerRank." },
   { to: "/progress", label: "Progress", icon: Flame, hint: "Streaks, badges, weekly charts, and overall solving progress." },
-  { to: "/profile", label: "Profile", icon: UserCircle2, hint: "Your public profile — coding platform links, solved stats, and completed problems." },
+  { to: "/review", label: "Review", icon: BookmarkCheck, hint: "Problems you bookmarked for a second look — sorted by day and section." },
+  { to: "/backlog", label: "Backlog", icon: CalendarDays, hint: "Past days you haven't fully completed. Insert a revision day to catch up." },
+  { to: "/contests", label: "Contests", icon: Trophy, hint: "Live, upcoming & missed CP contests from LeetCode, Codeforces, CodeChef, AtCoder, HackerRank." },
+  { to: "/profile", label: "Developer Profile", icon: UserCircle2, hint: "Edit your avatar, banner, display name, bio, and coding platform handles." },
   { to: "/settings", label: "Settings", icon: Settings, hint: "Adjust daily pace, shift schedule, pause plan, change password or theme." },
 ] as const;
 
-const MOBILE_BOTTOM_KEYS = ["/today", "/profile", "/settings"] as const;
+const MOBILE_BOTTOM_KEYS = ["/today", "/problems", "/settings"] as const;
 const MOBILE_BAR = NAV.filter((n) => (MOBILE_BOTTOM_KEYS as readonly string[]).includes(n.to));
 
 const SIDEBAR_MIN = 176;
@@ -129,7 +132,7 @@ function DesktopSidebar({
                 <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-md ml-[1px]">⁴⁰⁴</span>
               </div>
               <div className="font-mono text-[9px] font-bold tracking-tight text-muted-foreground leading-tight mt-1 truncate max-w-[160px]">
-                404 Distractions. 1 Goal: DSA. 🔥
+                Find. Solve. Master. 🔥
               </div>
             </div>
           )}
@@ -137,7 +140,11 @@ function DesktopSidebar({
 
         {/* User card */}
         <div className="border-b border-border px-3 py-3 shrink-0">
-          <div className="flex items-center gap-2.5">
+          <Link
+            href="/profile"
+            title="View your profile"
+            className="flex items-center gap-2.5 rounded-xl -mx-1 px-1 py-1 transition-colors hover:bg-secondary"
+          >
             <div className="size-9 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
               {photoURL
                 ? <img src={photoURL} alt="avatar" className="size-full object-cover" />
@@ -150,7 +157,7 @@ function DesktopSidebar({
                 <p className="text-[10px] text-muted-foreground truncate">{email}</p>
               </div>
             )}
-          </div>
+          </Link>
           {!collapsed && (
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {streak > 0 && (
@@ -222,7 +229,7 @@ function DesktopSidebar({
               <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
-              <DropdownMenuItem asChild><Link href="/profile"><UserCircle2 className="mr-2 size-4" /> Profile</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={onSignOut} className="text-destructive focus:text-destructive">
@@ -285,7 +292,12 @@ function MobileDrawer({
             className="absolute top-4 right-4 rounded-full p-1.5 text-muted-foreground hover:bg-secondary transition-colors">
             <X className="size-4" />
           </button>
-          <div className="flex items-center gap-3">
+          <Link
+            href="/profile"
+            onClick={onClose}
+            title="View your profile"
+            className="flex items-center gap-3 rounded-xl -mx-1 px-1 py-1 transition-colors hover:bg-white/5"
+          >
             <div className="size-12 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
               {photoURL ? <img src={photoURL} alt="avatar" className="size-full object-cover" /> : <span className="text-lg font-bold text-primary">{initials}</span>}
             </div>
@@ -293,7 +305,7 @@ function MobileDrawer({
               <p className="font-semibold text-sm truncate">{displayName}</p>
               <p className="text-[11px] text-muted-foreground truncate">{email}</p>
             </div>
-          </div>
+          </Link>
           <div className="mt-3.5 flex flex-wrap items-center gap-2">
             {streak > 0 && (
               <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
@@ -375,6 +387,7 @@ function MobileDrawer({
 // ─── AppShell ─────────────────────────────────────────────────────────────────
 export function AppShell({ email, children }: { email: string; children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
   const { lastSynced, days } = usePlan();
   const { settings } = useSettings();
@@ -423,6 +436,19 @@ export function AppShell({ email, children }: { email: string; children: React.R
     };
   }, [drawerOpen]);
 
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const activeNav = NAV.find((n) => pathname.startsWith(n.to)) ?? NAV[0];
 
   async function signOut() {
@@ -440,7 +466,9 @@ export function AppShell({ email, children }: { email: string; children: React.R
   return (
     <TooltipProvider delayDuration={200}>
       {/* Desktop sidebar */}
-      <DesktopSidebar {...sharedProps} width={sidebarWidth} onWidthChange={handleSidebarWidth} />
+      {!sidebarHidden && (
+        <DesktopSidebar {...sharedProps} width={sidebarWidth} onWidthChange={handleSidebarWidth} />
+      )}
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} {...sharedProps} />
@@ -450,7 +478,10 @@ export function AppShell({ email, children }: { email: string; children: React.R
         className="min-h-screen w-full max-w-full overflow-x-hidden bg-background transition-[padding] duration-200"
       >
         {/* ─ Outer wrapper shifts right on desktop ─ */}
-        <div className="md:transition-[padding] md:duration-200 md:pl-[var(--sidebar-w)]" style={{ ['--sidebar-w' as string]: `${sidebarWidth}px` } as React.CSSProperties}>
+        <div
+          className="md:transition-[padding] md:duration-200 md:pl-[var(--sidebar-w)]"
+          style={{ ['--sidebar-w' as string]: sidebarHidden ? '0px' : `${sidebarWidth}px` } as React.CSSProperties}
+        >
 
           {/* Mobile-only top header */}
           <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur md:hidden">
@@ -485,7 +516,7 @@ export function AppShell({ email, children }: { email: string; children: React.R
                     <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/profile"><UserCircle2 className="mr-2 size-4" /> Profile</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => openPanel()}><Palette className="mr-2 size-4" /> Customize Color & Font</DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -498,12 +529,38 @@ export function AppShell({ email, children }: { email: string; children: React.R
 
           {/* Desktop context ribbon — same height as header (~52px), shows active page hint */}
           <div className="hidden md:flex sticky top-0 z-20 items-center gap-3 border-b border-border bg-background/95 backdrop-blur px-6 py-3 min-h-[52px]">
+            {/* 3 lines toggle button for Desktop Sidebar */}
+            <button
+              onClick={() => setSidebarHidden((v) => !v)}
+              className="flex items-center justify-center p-2 rounded-xl border border-border bg-secondary/50 hover:bg-secondary text-foreground transition-colors shrink-0"
+              title={sidebarHidden ? "Show sidebar" : "Hide sidebar"}
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="size-4" />
+            </button>
+
             <div className="flex items-center gap-2 min-w-0">
               <activeNav.icon className="size-4 text-primary shrink-0" aria-hidden="true" />
               <span className="font-semibold text-sm text-foreground">{activeNav.label}</span>
               <span className="hidden lg:inline text-muted-foreground mx-1.5">·</span>
               <span className="hidden lg:block text-xs text-muted-foreground truncate leading-snug">{activeNav.hint}</span>
             </div>
+
+            {/* Top Center Global Search Trigger */}
+            <div className="flex-1 flex justify-center max-w-xs lg:max-w-md mx-auto px-2">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-secondary/60 hover:bg-secondary px-3.5 py-1.5 text-xs text-muted-foreground transition-all w-full shadow-inner group"
+                title="Search topics, problems, pages, keywords (Ctrl+K)"
+              >
+                <Search className="size-3.5 text-primary group-hover:scale-110 transition-transform shrink-0" />
+                <span className="truncate flex-1 text-left">Search topics, problems, pages...</span>
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-white/10 bg-background px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shrink-0">
+                  Ctrl K
+                </kbd>
+              </button>
+            </div>
+
             {/* Right side desktop controls */}
             <div className="ml-auto flex items-center gap-2 shrink-0">
               {streak > 0 && (
@@ -523,7 +580,7 @@ export function AppShell({ email, children }: { email: string; children: React.R
                   <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
-                  <DropdownMenuItem asChild><Link href="/profile"><UserCircle2 className="mr-2 size-4" /> Profile</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => void signOut()} className="text-destructive focus:text-destructive">Log out</DropdownMenuItem>
@@ -549,28 +606,56 @@ export function AppShell({ email, children }: { email: string; children: React.R
           {/* Theme customizer */}
           <ThemeCustomizerPanel />
 
-          {/* Mobile bottom bar */}
+          {/* Mobile bottom bar — Search in Center (Mobile View Only) */}
           <nav aria-label="Quick navigation"
-            className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur md:hidden">
-            <ul className="grid grid-cols-3">
-              {MOBILE_BAR.map((n) => {
-                const isActive = pathname.startsWith(n.to);
-                return (
-                  <li key={n.to}>
-                    <Link href={n.to}
-                      className={cn("flex flex-col items-center gap-0.5 px-2 py-2.5 text-[11px] font-medium transition-colors",
-                        isActive ? "text-primary" : "text-muted-foreground")}>
-                      <n.icon className={cn("size-5", isActive && "text-primary")} aria-hidden="true" />
-                      {n.label}
-                      {isActive && <span className="size-1 rounded-full bg-primary" />}
-                    </Link>
-                  </li>
-                );
-              })}
+            className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-background/95 backdrop-blur-2xl md:hidden py-1 px-2 shadow-2xl">
+            <ul className="grid grid-cols-5 items-center">
+              <li>
+                <Link href="/today" className={cn("flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors", pathname === "/today" ? "text-primary font-bold" : "text-muted-foreground")}>
+                  <Sparkles className="size-4.5" />
+                  <span>Today's Workspace</span>
+                </Link>
+              </li>
+
+              <li>
+                <Link href="/problems" className={cn("flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors", pathname === "/problems" ? "text-primary font-bold" : "text-muted-foreground")}>
+                  <Code2 className="size-4.5" />
+                  <span>Problems</span>
+                </Link>
+              </li>
+
+              {/* Center Mobile Search Button */}
+              <li className="flex justify-center">
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="flex flex-col items-center justify-center size-10 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 transition-transform"
+                  title="Search anything (Ctrl+K)"
+                  aria-label="Open search"
+                >
+                  <Search className="size-5" />
+                </button>
+              </li>
+
+              <li>
+                <Link href="/topics" className={cn("flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors", pathname === "/topics" ? "text-primary font-bold" : "text-muted-foreground")}>
+                  <LayoutGrid className="size-4.5" />
+                  <span>Topics</span>
+                </Link>
+              </li>
+
+              <li>
+                <Link href="/settings" className={cn("flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors", pathname === "/settings" ? "text-primary font-bold" : "text-muted-foreground")}>
+                  <Settings className="size-4.5" />
+                  <span>Settings</span>
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>
       </div>
+
+      {/* Global Command Search Modal */}
+      <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} onOpenColorPanel={openPanel} />
     </TooltipProvider>
   );
 }

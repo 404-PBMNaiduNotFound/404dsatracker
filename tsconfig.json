@@ -39,13 +39,6 @@
   ],
   "exclude": [
     "functions",
-    "node_modules",
-    "src/routes",
-    "src/router.tsx",
-    "src/server.ts",
-    "src/start.ts",
-    "src/routeTree.gen.ts",
-    "src/integrations/firebase/auth-attacher.ts",
-    "src/integrations/firebase/auth-middleware.ts"
+    "node_modules"
   ]
 }

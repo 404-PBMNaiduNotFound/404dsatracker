@@ -20,18 +20,14 @@ function googleSearchUrl(problemName: string, topic?: string) {
 }
 
 function youtubeSearchUrl(problemName: string) {
-  const query = `"${problemName}" DSA solution intuition brute force optimal approach code`;
+  const query = `${problemName} solution intuition explained NeetCode OR Striver`;
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 
+import { getChatGPTAiPromptUrl } from "@/lib/aiTutorPrompt";
+
 function chatGptProblemUrl(problemName: string) {
-  const prompt = `Explain the problem "${problemName}" in detail. Cover:
-1. Problem intuition and what it's asking
-2. Brute force approach with time and space complexity
-3. Better/optimized approach with explanation
-4. Optimal solution with step-by-step walkthrough, time complexity, and space complexity
-5. Key patterns and tips to remember`;
-  return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+  return getChatGPTAiPromptUrl(problemName);
 }
 import {
   Tooltip,
@@ -169,143 +165,143 @@ export function ProblemRow({
               <span className="text-xs">Code</span>
             </button>
           )}
-        {problem.platform === "LeetCode" && !problem.linkVerified ? null : (() => {
-          // Derive the actual platform label from the verified link URL
-          const url = problem.link;
-          const linkPlatform =
-            url.includes("geeksforgeeks.org") ? "GFG" :
-            url.includes("hackerrank.com") ? "HackerRank" :
-            url.includes("w3schools.com") ? "W3Schools" :
-            url.includes("leetcode.com") ? "LeetCode" :
-            problem.platform;
-          const hint =
-            linkPlatform === "LeetCode"
-              ? "Opens this problem directly on LeetCode"
-              : `Opens this problem on ${linkPlatform}`;
-          return (
-            <HoverHint hint={hint}>
+          {problem.platform === "LeetCode" && !problem.linkVerified ? null : (() => {
+            // Derive the actual platform label from the verified link URL
+            const url = problem.link;
+            const linkPlatform =
+              url.includes("geeksforgeeks.org") ? "GFG" :
+                url.includes("hackerrank.com") ? "HackerRank" :
+                  url.includes("w3schools.com") ? "W3Schools" :
+                    url.includes("leetcode.com") ? "LeetCode" :
+                      problem.platform;
+            const hint =
+              linkPlatform === "LeetCode"
+                ? "Opens this problem directly on LeetCode"
+                : `Opens this problem on ${linkPlatform}`;
+            return (
+              <HoverHint hint={hint}>
+                <Button asChild variant="ghost" size="sm" className="h-8 px-2">
+                  <a href={url} target="_blank" rel="noreferrer" aria-label={`Solve ${problem.name} on ${linkPlatform}`}>
+                    <ExternalLink className="size-3.5" aria-hidden="true" />
+                    <span className="ml-1 text-xs">{linkPlatform}</span>
+                  </a>
+                </Button>
+              </HoverHint>
+            );
+          })()}
+          {problem.takeUForwardLink && (
+            <HoverHint hint="Opens the takeUforward article explaining this problem">
               <Button asChild variant="ghost" size="sm" className="h-8 px-2">
-                <a href={url} target="_blank" rel="noreferrer" aria-label={`Solve ${problem.name} on ${linkPlatform}`}>
-                  <ExternalLink className="size-3.5" aria-hidden="true" />
-                  <span className="ml-1 text-xs">{linkPlatform}</span>
+                <a
+                  href={problem.takeUForwardLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Read the takeUforward article for ${problem.name}`}
+                >
+                  <BookOpen className="size-3.5" aria-hidden="true" />
+                  <span className="ml-1 text-xs">TUF</span>
                 </a>
               </Button>
             </HoverHint>
-          );
-        })()}
-        {problem.takeUForwardLink && (
-          <HoverHint hint="Opens the takeUforward article explaining this problem">
+          )}
+          <HoverHint hint="Search Google: problem name + DSA LeetCode GeeksforGeeks TUF YouTube tutorials">
             <Button asChild variant="ghost" size="sm" className="h-8 px-2">
               <a
-                href={problem.takeUForwardLink}
+                href={googleSearchUrl(problem.name)}
                 target="_blank"
                 rel="noreferrer"
-                aria-label={`Read the takeUforward article for ${problem.name}`}
+                aria-label={`Search Google for ${problem.name} DSA tutorials`}
               >
-                <BookOpen className="size-3.5" aria-hidden="true" />
-                <span className="ml-1 text-xs">TUF</span>
+                <Search className="size-3.5" aria-hidden="true" />
+                <span className="ml-1 text-xs">Google</span>
               </a>
             </Button>
           </HoverHint>
-        )}
-        <HoverHint hint="Search Google: problem name + DSA LeetCode GeeksforGeeks TUF YouTube tutorials">
-          <Button asChild variant="ghost" size="sm" className="h-8 px-2">
-            <a
-              href={googleSearchUrl(problem.name)}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`Search Google for ${problem.name} DSA tutorials`}
-            >
-              <Search className="size-3.5" aria-hidden="true" />
-              <span className="ml-1 text-xs">Google</span>
-            </a>
-          </Button>
-        </HoverHint>
-        <HoverHint hint="Search YouTube for brute force, better, and optimal solutions with explanations">
-          <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-red-500 hover:text-red-600">
-            <a
-              href={youtubeSearchUrl(problem.name)}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`Search YouTube for ${problem.name} solution`}
-            >
-              <svg className="size-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-              </svg>
-              <span className="ml-1 text-xs">YouTube</span>
-            </a>
-          </Button>
-        </HoverHint>
-        <HoverHint hint="Ask ChatGPT to explain brute force, better, optimal approach, TC, SC, and intuition for this problem">
-          <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-green-600 hover:text-green-700">
-            <a
-              href={chatGptProblemUrl(problem.name)}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`Explain ${problem.name} on ChatGPT`}
-            >
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              <span className="ml-1 text-xs">ChatGPT</span>
-            </a>
-          </Button>
-        </HoverHint>
-        {onReview && (
-          <HoverHint
-            hint={
-              problem.forReview
-                ? "Remove this problem from your Review tab"
-                : "Flag this problem to revisit later in the Review tab"
-            }
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "size-8",
+          <HoverHint hint="Search YouTube for brute force, better, and optimal solutions with explanations">
+            <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-red-500 hover:text-red-600">
+              <a
+                href={youtubeSearchUrl(problem.name)}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Search YouTube for ${problem.name} solution`}
+              >
+                <svg className="size-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                </svg>
+                <span className="ml-1 text-xs">YouTube</span>
+              </a>
+            </Button>
+          </HoverHint>
+          <HoverHint hint="Ask ChatGPT to explain brute force, better, optimal approach, TC, SC, and intuition for this problem">
+            <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-green-600 hover:text-green-700">
+              <a
+                href={chatGptProblemUrl(problem.name)}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Explain ${problem.name} on ChatGPT`}
+              >
+                <Sparkles className="size-3.5" aria-hidden="true" />
+                <span className="ml-1 text-xs">ChatGPT</span>
+              </a>
+            </Button>
+          </HoverHint>
+          {onReview && (
+            <HoverHint
+              hint={
                 problem.forReview
-                  ? "text-primary hover:text-primary"
-                  : "text-muted-foreground hover:text-primary",
-              )}
-              aria-label={
-                problem.forReview
-                  ? `Remove ${problem.name} from review`
-                  : `Add ${problem.name} to review`
+                  ? "Remove this problem from your Review tab"
+                  : "Flag this problem to revisit later in the Review tab"
               }
-              onClick={onReview}
             >
-              {problem.forReview ? (
-                <BookmarkCheck className="size-4" />
-              ) : (
-                <BookmarkPlus className="size-4" />
-              )}
-            </Button>
-          </HoverHint>
-        )}
-        {onDelete && !problem.done && (
-          <HoverHint hint="Moves this problem to tomorrow's plan instead of today">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-muted-foreground hover:text-destructive"
-              aria-label={`Move ${problem.name} to tomorrow`}
-              onClick={onDelete}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </HoverHint>
-        )}
-      </div>
-    </li>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "size-8",
+                  problem.forReview
+                    ? "text-primary hover:text-primary"
+                    : "text-muted-foreground hover:text-primary",
+                )}
+                aria-label={
+                  problem.forReview
+                    ? `Remove ${problem.name} from review`
+                    : `Add ${problem.name} to review`
+                }
+                onClick={onReview}
+              >
+                {problem.forReview ? (
+                  <BookmarkCheck className="size-4" />
+                ) : (
+                  <BookmarkPlus className="size-4" />
+                )}
+              </Button>
+            </HoverHint>
+          )}
+          {onDelete && !problem.done && (
+            <HoverHint hint="Moves this problem to tomorrow's plan instead of today">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-destructive"
+                aria-label={`Move ${problem.name} to tomorrow`}
+                onClick={onDelete}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </HoverHint>
+          )}
+        </div>
+      </li>
 
-    <CodeModal
-      open={modalOpen}
-      onOpenChange={setModalOpen}
-      problemName={problem.name}
-      existingSubmission={submission}
-      onSave={handleSaveCode}
-      onDelete={handleDeleteCode}
-      readOnly={readOnly}
-    />
-  </>
-);
+      <CodeModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        problemName={problem.name}
+        existingSubmission={submission}
+        onSave={handleSaveCode}
+        onDelete={handleDeleteCode}
+        readOnly={readOnly}
+      />
+    </>
+  );
 }

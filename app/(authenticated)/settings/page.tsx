@@ -23,11 +23,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Bell, CalendarDays, Palette, PauseCircle, PlayCircle, Sliders, UserCog, HelpCircle } from "lucide-react";
+import { Bell, CalendarDays, Palette, PauseCircle, PlayCircle, Sliders, UserCog, HelpCircle, Trash2, AlertTriangle } from "lucide-react";
 import { useThemeCustomizer } from "../../../app/theme-customizer-context";
 import { cn } from "@/lib/utils";
 
@@ -248,27 +247,61 @@ export default function SettingsPage() {
     });
   }
 
+  const [deleting, setDeleting] = useState(false);
+
   async function deleteAccount() {
+    setDeleting(true);
     try {
-      await deleteAccountData(userId);
       const user = auth.currentUser;
-      if (user) await deleteUser(user);
+      if (!user) throw new Error("No active user session.");
+
+      // 1. Delete Firestore data FIRST, while the user is still authenticated.
+      // Firestore's security rules key off request.auth.uid — once the Auth
+      // account is deleted below, request.auth becomes null and every
+      // isOwner(uid) check fails, silently skipping the entire cleanup
+      // (it was previously swallowed by a .catch(console.warn)). Doing this
+      // step first guarantees the DB is actually wiped.
+      if (userId) {
+        await deleteAccountData(userId);
+      }
+
+      // 2. Delete user from Firebase Auth
+      try {
+        await deleteUser(user);
+      } catch (e: any) {
+        if (e?.code === "auth/requires-recent-login") {
+          const providerData = user.providerData;
+          const isGoogle = providerData.some((p) => p.providerId === "google.com");
+          if (isGoogle) {
+            toast.info("Re-authenticating with Google to confirm deletion...");
+            const provider = new GoogleAuthProvider();
+            await linkWithPopup(user, provider);
+            await deleteUser(user);
+          } else {
+            toast.error("Security timeout: Please sign out and sign back in to delete your account.");
+            setDeleting(false);
+            return;
+          }
+        } else {
+          throw e;
+        }
+      }
+
+      // 3. Clear local caches
       await qc.cancelQueries();
       qc.clear();
       if (typeof window !== "undefined") {
         window.localStorage.clear();
       }
+
       toast.success("Your account and all associated data have been permanently deleted.");
       router.push("/auth?next=/today");
-    } catch (e) {
-      const needsReauth = e instanceof FirebaseError && e.code === "auth/requires-recent-login";
+    } catch (e: any) {
       toast.error("Could not delete your account", {
-        description: needsReauth
-          ? "For security, please sign out and sign back in, then try deleting your account again."
-          : e instanceof Error
-            ? e.message
-            : "Please try again.",
+        description: e?.message || "Please try again.",
       });
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -580,7 +613,7 @@ export default function SettingsPage() {
       <Section
         icon={UserCog}
         title="Account"
-        description="Change your display name or password, connect Google, or delete everything."
+        description="Change your display name or password, or connect Google."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -623,21 +656,6 @@ export default function SettingsPage() {
             Continue with Google
           </Button>
         </div>
-
-        <Separator className="my-5" />
-
-        <ConfirmDialog
-          title="Delete your account data?"
-          description="This permanently removes your entire plan, notes, AI caches, achievements and chat history. This cannot be undone."
-          confirmWord="DELETE"
-          confirmLabel="Delete everything"
-          onConfirm={deleteAccount}
-          trigger={
-            <Button variant="outline" className="text-destructive">
-              Delete my account &amp; data
-            </Button>
-          }
-        />
       </Section>
 
       {/* ── Color Customizer ── */}
@@ -654,6 +672,39 @@ export default function SettingsPage() {
           Open Color Customizer
         </Button>
       </Section>
+
+      {/* ── Danger Zone ── */}
+      <section className="mb-6 rounded-xl border border-destructive/40 bg-destructive/5 p-5 animate-fade-in-up">
+        <div className="mb-4 flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 size-5 text-destructive" aria-hidden="true" />
+          <div>
+            <h2 className="font-display text-lg font-semibold text-destructive">Danger Zone</h2>
+            <p className="text-sm text-muted-foreground">
+              Permanently delete your account and remove all stored progress, notes, submission code, and settings.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-destructive/20 pt-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Delete Account</p>
+            <p className="text-xs text-muted-foreground">This action cannot be undone. All your progress will be wiped immediately.</p>
+          </div>
+        </div>
+
+        <ConfirmDialog
+          trigger={
+            <Button variant="destructive" disabled={deleting} className="gap-2">
+              <Trash2 className="size-4" />
+              {deleting ? "Deleting..." : "Delete Account"}
+            </Button>
+          }
+          title="Delete your account permanently?"
+          description="Are you absolutely sure? This will permanently delete your user profile, solved problem history, code submissions, reminders, and custom settings. This action CANNOT be undone."
+          confirmLabel="Yes, delete my account"
+          destructive
+          onConfirm={deleteAccount}
+        />
+      </section>
 
       {/* ── FAQ Section ── */}
       <Section

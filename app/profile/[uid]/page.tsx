@@ -6,12 +6,12 @@ import Link from "next/link";
 import {
   loadUserProfile,
   loadPublicDays,
+  resolveProfileIdentifier,
   type CodingProfiles,
   type CompletedProblemSnapshot,
   type PublicStats,
 } from "@/lib/db";
 import { ExternalLink, Globe, CalendarDays, Code2, Flame, Sparkles } from "lucide-react";
-import { dayProgress } from "@/lib/plan";
 import { SubmissionHeatmap } from "@/components/SubmissionHeatmap";
 import { BadgesGrid } from "@/components/BadgesGrid";
 import { computeBadges, currentStreak } from "@/lib/gamification";
@@ -47,12 +47,16 @@ interface ExtendedCompletedSnapshot extends CompletedProblemSnapshot {
 
 export default function PublicProfilePage() {
   const params = useParams<{ uid: string }>();
-  const uid = params?.uid ?? "";
+  // Route folder is still named [uid] to avoid a broad rename, but the value
+  // can now be either a chosen username (new links) or a raw Firebase uid
+  // (links shared before usernames existed) — resolved below.
+  const identifier = params?.uid ?? "";
 
   const [notFound, setNotFound] = useState(false);
   const [selectedProb, setSelectedProb] = useState<ExtendedCompletedSnapshot | null>(null);
 
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [photoURL, setPhotoURL] = useState("");
   const [bannerURL, setBannerURL] = useState("");
   const [bio, setBio] = useState("");
@@ -68,16 +72,22 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!identifier) return;
     setLoading(true);
 
-    Promise.all([loadUserProfile(uid), loadPublicDays(uid)])
-      .then(([p, loadedDays]) => {
+    resolveProfileIdentifier(identifier)
+      .then((uid) => {
+        if (!uid) {
+          setNotFound(true);
+          return;
+        }
+        return Promise.all([loadUserProfile(uid), loadPublicDays(uid)]).then(([p, loadedDays]) => {
         if (!p.displayName && !p.bio && !p.photoURL && loadedDays.length === 0) {
           setNotFound(true);
           return;
         }
         setDisplayName(p.displayName ?? "");
+        setUsername(p.username ?? "");
         setPhotoURL(p.photoURL ?? "");
         setBannerURL(p.bannerURL ?? "");
         setBio(p.bio ?? "");
@@ -87,10 +97,11 @@ export default function PublicProfilePage() {
         );
         setCompletedProblems((p.completedProblems as ExtendedCompletedSnapshot[]) ?? []);
         setDays(loadedDays);
+        });
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [uid]);
+  }, [identifier]);
 
   const platformOptions = useMemo(
     () => ["All", ...Array.from(new Set(completedProblems.map((p) => p.platform))).sort()],
@@ -111,22 +122,32 @@ export default function PublicProfilePage() {
   const badges = useMemo(() => computeBadges(days), [days]);
   const streakCount = useMemo(() => currentStreak(days), [days]);
 
-  // Heatmap calculations
-  const heatmapData = useMemo(() => {
-    return (days ?? [])
-      .filter((d) => !d.skipped)
-      .map((d) => ({ date: d.date, solved: dayProgress(d).done }));
-  }, [days]);
-
-  const detailMap = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    (days ?? []).forEach((d) => {
-      const doneProbs = d.problems.filter((p) => p.done);
-      if (doneProbs.length > 0) {
-        map[d.date] = doneProbs;
+  // Heatmap calculations — grouped by the date each problem was actually
+  // marked done (not the day it was originally assigned to), so a backlog
+  // problem solved today shows up on today's square. Falls back to the
+  // day's own date for rows completed before this field existed.
+  const { heatmapData, detailMap } = useMemo(() => {
+    const dateMap = new Map<string, any[]>();
+    for (const day of days ?? []) {
+      const doneProbs = day.problems.filter((p) => p.done);
+      for (const p of doneProbs) {
+        const dateStr = p.completedAt || day.date;
+        const existing = dateMap.get(dateStr) ?? [];
+        dateMap.set(dateStr, [...existing, p]);
       }
+    }
+    const hData: { date: string; solved: number }[] = [];
+    const dMap: Record<string, any[]> = {};
+    dateMap.forEach((probs, dateStr) => {
+      hData.push({ date: dateStr, solved: probs.length });
+      dMap[dateStr] = probs;
     });
-    return map;
+    for (const day of days ?? []) {
+      if (!day.skipped && !dateMap.has(day.date)) {
+        hData.push({ date: day.date, solved: 0 });
+      }
+    }
+    return { heatmapData: hData, detailMap: dMap };
   }, [days]);
 
   if (loading) {
@@ -196,7 +217,8 @@ export default function PublicProfilePage() {
               </div>
 
               <div className="flex-1 min-w-0 pt-2">
-                <h1 className="text-xl font-bold">{displayName || "Anonymous Coder"}</h1>
+                <h1 className="text-xl font-bold text-foreground">{displayName || "Anonymous Coder"}</h1>
+                {username && <p className="text-xs font-mono font-medium text-primary mt-0.5">@{username}</p>}
                 {bio && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{bio}</p>}
               </div>
             </div>

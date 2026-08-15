@@ -23,7 +23,7 @@ async function fetchCodeChef(): Promise<Contest[]> {
         "Accept": "application/json",
       },
       cache: "no-store",
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(3500),
     });
 
     if (!res.ok) return [];
@@ -61,8 +61,12 @@ async function fetchCodeChef(): Promise<Contest[]> {
           url: `https://www.codechef.com/${c.contest_code}`,
         };
       });
-  } catch (e) {
-    console.error("CodeChef fetch error:", e);
+  } catch (e: any) {
+    if (e?.name === "TimeoutError" || e?.code === 23) {
+      console.warn("CodeChef API timed out (8s limit reached), skipping CodeChef contests fetch.");
+    } else {
+      console.warn("CodeChef fetch warning:", e?.message ?? e);
+    }
     return [];
   }
 }
@@ -202,7 +206,7 @@ async function fetchHackerRank(): Promise<Contest[]> {
   try {
     const res = await fetch("https://www.hackerrank.com/rest/contests/upcoming?offset=0&limit=20", {
       cache: "no-store",
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(3500),
     });
     if (!res.ok) return [];
     const json = await res.json();
@@ -245,7 +249,7 @@ async function fetchHackerEarth(): Promise<Contest[]> {
         "Accept": "application/json",
       },
       cache: "no-store",
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(3500),
     });
     if (!res.ok) return [];
     const json = await res.json();
@@ -291,7 +295,19 @@ function dedup(contests: Contest[]): Contest[] {
   });
 }
 
+let cachedResponse: { data: Contest[]; timestamp: number } | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
 export async function GET() {
+  const now = Date.now();
+  if (cachedResponse && now - cachedResponse.timestamp < CACHE_TTL_MS) {
+    return NextResponse.json(cachedResponse.data, {
+      headers: {
+        "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=60",
+      },
+    });
+  }
+
   const results = await Promise.allSettled([
     fetchCodeChef(),
     fetchCodeforces(),
@@ -301,11 +317,16 @@ export async function GET() {
   ]);
 
   const all = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-
   const sorted = dedup(all).sort((a, b) => a.startMs - b.startMs);
+
+  if (sorted.length > 0) {
+    cachedResponse = { data: sorted, timestamp: now };
+  }
+
   return NextResponse.json(sorted, {
     headers: {
-      "Cache-Control": "no-store, max-age=0, must-revalidate",
+      "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=60",
     },
   });
 }
+

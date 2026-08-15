@@ -111,6 +111,36 @@ function WeeksPage() {
             <Progress value={w.pct} className="mb-3 h-1.5" />
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 w-full">
               {w.list.map((d) => {
+                if (d.isRevisionDay) {
+                  const weekDays = (d.revisionDayNumbers ?? [])
+                    .map((n) => days.find((x) => x.dayNumber === n))
+                    .filter((x): x is Day => Boolean(x));
+                  return (
+                    <div
+                      key={d.dayNumber}
+                      className="col-span-full rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-3.5 space-y-2.5"
+                    >
+                      <p className="text-xs font-bold text-primary">Sunday · Weekly Revision — revisit Mon–Sat</p>
+                      {weekDays.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No study days from this week yet.</p>
+                      ) : (
+                        <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                          {weekDays.map((wd) => (
+                            <button
+                              key={wd.dayNumber}
+                              type="button"
+                              onClick={() => setSelectedDay(wd)}
+                              className="rounded-xl border border-white/10 bg-secondary/60 hover:bg-secondary px-3 py-2 text-left transition-colors"
+                            >
+                              <p className="text-[11px] font-bold text-foreground truncate">Day {wd.dayNumber} · {wd.topic}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{wd.problems.length} problem{wd.problems.length === 1 ? "" : "s"}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
                 const canSkip = deriveStatus(d) !== "completed" && d.date > todayDate;
                 return (
                   <div key={d.dayNumber} className="space-y-1.5">

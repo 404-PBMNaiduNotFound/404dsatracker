@@ -12,6 +12,26 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // usernames/{username} -> { uid } — the uniqueness index behind the
+    // /profile/{username} shareable links. World-readable so the signup
+    // form's live availability check and the public profile route both
+    // work without login. A username can only be created by the account
+    // it belongs to, only once (no stealing an existing one), and only
+    // its current owner may repoint or touch it afterwards.
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update: if request.auth != null
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid;
+      // Only the current owner may release (delete) their own claimed
+      // username — needed so account deletion can free it up for reuse.
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
     match /users/{uid} {
       // Public profile fields (displayName, photoURL, bio, codingProfiles, publicStats)
       // are intentionally world-readable so the shareable /profile/[uid] route works

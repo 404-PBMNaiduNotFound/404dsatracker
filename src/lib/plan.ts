@@ -117,8 +117,7 @@ function dayAllocation(): number[] {
 
 export function seedDays(startDate = START_DATE): Day[] {
   const alloc = dayAllocation();
-  const days: Day[] = [];
-  let dayNumber = 0;
+  const contentDays: Omit<Day, "dayNumber" | "date">[] = [];
 
   SECTIONS.forEach((section, si) => {
     const nDays = alloc[si];
@@ -128,11 +127,8 @@ export function seedDays(startDate = START_DATE): Day[] {
       const chunk = problems.slice(i * per, (i + 1) * per);
       const subCount = Math.max(1, Math.ceil(section.subtopics.length / nDays));
       const subs = section.subtopics.slice(i * subCount, (i + 1) * subCount);
-      dayNumber += 1;
-      days.push({
+      contentDays.push({
         id: `${slug(section.section)}-${i + 1}`,
-        dayNumber,
-        date: addDays(startDate, dayNumber - 1),
         section: section.section,
         topic: nDays > 1 ? `${section.section} — Part ${i + 1}` : section.section,
         subtopics: subs.length ? subs : section.subtopics.slice(0, 2),
@@ -146,6 +142,47 @@ export function seedDays(startDate = START_DATE): Day[] {
       });
     }
   });
+
+  // Teacher/student rhythm: Monday–Saturday cover new topics, and every
+  // Sunday (relative to the plan's own start date) is set aside as a Weekly
+  // Revision day listing that week's study days so the student can revisit
+  // and re-solve everything before moving on.
+  const days: Day[] = [];
+  const startDow = new Date(`${startDate}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  let contentIdx = 0;
+  let weekDayNumbers: number[] = [];
+  let position = 0;
+  let dayNumber = 0;
+
+  while (contentIdx < contentDays.length) {
+    const isSunday = (startDow + position) % 7 === 0;
+    dayNumber += 1;
+    if (isSunday) {
+      days.push({
+        id: `revision-week-${Math.ceil(dayNumber / 7)}`,
+        dayNumber,
+        date: addDays(startDate, position),
+        section: "Revision",
+        topic: "Weekly Revision",
+        subtopics: [],
+        problems: [],
+        checklist: [],
+        status: "pending",
+        notes: "",
+        revisionNotes: "",
+        skipped: false,
+        isRevisionDay: true,
+        revisionDayNumbers: weekDayNumbers,
+      });
+      weekDayNumbers = [];
+    } else {
+      const c = contentDays[contentIdx];
+      contentIdx += 1;
+      days.push({ ...c, dayNumber, date: addDays(startDate, position) });
+      weekDayNumbers.push(dayNumber);
+    }
+    position += 1;
+  }
 
   return renumber(days, startDate);
 }

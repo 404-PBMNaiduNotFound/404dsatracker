@@ -62,11 +62,26 @@ console.error = (...args: unknown[]) => {
   originalConsoleError(...expanded);
 };
 
-if (typeof globalThis.addEventListener === "function") {
-  globalThis.addEventListener("error", (event) => record((event as ErrorEvent).error ?? event));
-  globalThis.addEventListener("unhandledrejection", (event) =>
-    record((event as PromiseRejectionEvent).reason),
+function isIgnoredDatabaseError(reason: unknown): boolean {
+  if (!reason) return false;
+  const msg = typeof reason === "string" ? reason : (reason as any)?.message || (reason as any)?.name || String(reason);
+  return (
+    msg.includes("Database is closing") ||
+    msg.includes("Database is closing/hidden") ||
+    msg.includes("BloomFilter") ||
+    msg.includes("indexedDB")
   );
+}
+
+if (typeof globalThis.addEventListener === "function") {
+  globalThis.addEventListener("error", (event) => {
+    const err = (event as ErrorEvent).error ?? event;
+    if (!isIgnoredDatabaseError(err)) record(err);
+  });
+  globalThis.addEventListener("unhandledrejection", (event) => {
+    const reason = (event as PromiseRejectionEvent).reason;
+    if (!isIgnoredDatabaseError(reason)) record(reason);
+  });
 }
 
 export function consumeLastCapturedError(): unknown {

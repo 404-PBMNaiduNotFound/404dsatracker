@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router'
 
 import { useEffect, useState } from "react";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
+  type User,
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth } from "@/integrations/firebase/client";
@@ -20,7 +21,15 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
+import {
+  claimUsername,
+  isUsernameAvailable,
+  loadUserProfile,
+  normalizeUsername,
+  saveUserProfile,
+  USERNAME_REGEX,
+} from "@/lib/db";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -44,7 +53,7 @@ export const Route = createFileRoute("/auth")({
 const emailSchema = z.string().trim().email("Enter a valid email address").max(255);
 const passwordSchema = z.string().min(8, "Password must be at least 8 characters").max(72);
 
-/** Firebase's auth/* error codes -> the same friendly copy Supabase's messages used to give. */
+/** Firebase's auth/* error codes -> friendly messages. */
 function authErrorMessage(e: unknown): string {
   if (e instanceof FirebaseError) {
     switch (e.code) {
@@ -70,29 +79,92 @@ function authErrorMessage(e: unknown): string {
 function AuthPage() {
   const navigate = useNavigate();
   const { next } = useSearch({ from: "/auth" });
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [sentReset, setSentReset] = useState(false);
 
+  // ── Username + display-name step shown after any successful auth
+  // for accounts that don't yet have a username.
+  const [step, setStep] = useState<"credentials" | "username">("credentials");
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
+  const [usernameBusy, setUsernameBusy] = useState(false);
+
+  // Debounced live availability check while user types.
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) void navigate({ to: next, replace: true });
-    });
-    return () => unsub();
-  }, [navigate, next]);
+    if (step !== "username") return;
+    const raw = username.trim();
+    if (!raw) { setUsernameStatus("idle"); return; }
+    const u = normalizeUsername(raw);
+    if (!USERNAME_REGEX.test(u)) { setUsernameStatus("invalid"); return; }
+    setUsernameStatus("checking");
+    const t = setTimeout(async () => {
+      try {
+        const available = await isUsernameAvailable(u);
+        setUsernameStatus(available ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  }, [username, step]);
+
+  /** After any successful auth, route to the username step if needed. */
+  async function proceedAfterAuth(user: User) {
+    try {
+      const profile = await loadUserProfile(user.uid);
+      if (!profile.username) {
+        setPendingUser(user);
+        setDisplayName(user.displayName ?? "");
+        setUsername("");
+        setUsernameStatus("idle");
+        setStep("username");
+        return;
+      }
+    } catch {
+      // if profile load fails, just continue
+    }
+    void navigate({ to: next, replace: true });
+  }
+
+  async function handleClaimUsername() {
+    if (!pendingUser) return;
+    const u = normalizeUsername(username);
+    if (!USERNAME_REGEX.test(u)) { setUsernameStatus("invalid"); return; }
+    setUsernameBusy(true);
+    try {
+      await claimUsername(pendingUser.uid, u);
+      const trimmedName = displayName.trim();
+      if (trimmedName) {
+        await saveUserProfile(pendingUser.uid, { displayName: trimmedName });
+      }
+      toast.success("You're all set!", { description: `Your profile is live at /profile/${u}` });
+      void navigate({ to: next, replace: true });
+    } catch (e) {
+      if (e instanceof Error && e.message === "USERNAME_TAKEN") {
+        setUsernameStatus("taken");
+        toast.error("That username is already taken — try another.");
+      } else if (e instanceof Error && e.message === "USERNAME_INVALID") {
+        setUsernameStatus("invalid");
+      } else {
+        toast.error("Couldn't save your username. Try again.");
+      }
+    } finally {
+      setUsernameBusy(false);
+    }
+  }
 
   const validate = () => {
     const e = emailSchema.safeParse(email);
-    if (!e.success) {
-      toast.error(e.error.issues[0].message);
-      return null;
-    }
+    if (!e.success) { toast.error(e.error.issues[0].message); return null; }
     const p = passwordSchema.safeParse(password);
-    if (!p.success) {
-      toast.error(p.error.issues[0].message);
-      return null;
-    }
+    if (!p.success) { toast.error(p.error.issues[0].message); return null; }
     return { email: e.data, password: p.data };
   };
 
@@ -101,8 +173,8 @@ function AuthPage() {
     if (!v) return;
     setBusy(true);
     try {
-      await signInWithEmailAndPassword(auth, v.email, v.password);
-      void navigate({ to: next, replace: true });
+      const cred = await signInWithEmailAndPassword(auth, v.email, v.password);
+      await proceedAfterAuth(cred.user);
     } catch (e) {
       toast.error(authErrorMessage(e));
     } finally {
@@ -115,11 +187,8 @@ function AuthPage() {
     if (!v) return;
     setBusy(true);
     try {
-      await createUserWithEmailAndPassword(auth, v.email, v.password);
-      // Firebase signs the user in immediately on account creation (no
-      // email-confirmation gate by default), matching the old
-      // "no confirmation required" path from Supabase's signUp response.
-      void navigate({ to: next, replace: true });
+      const cred = await createUserWithEmailAndPassword(auth, v.email, v.password);
+      await proceedAfterAuth(cred.user);
     } catch (e) {
       toast.error(authErrorMessage(e));
     } finally {
@@ -131,12 +200,9 @@ function AuthPage() {
     try {
       const provider = new GoogleAuthProvider();
       try {
-        await signInWithPopup(auth, provider);
-        void navigate({ to: next, replace: true });
+        const cred = await signInWithPopup(auth, provider);
+        await proceedAfterAuth(cred.user);
       } catch (e) {
-        // Popups are blocked on some mobile browsers/in-app webviews — fall
-        // back to a full-page redirect; the redirect result resolves via the
-        // onAuthStateChanged listener above once the browser returns here.
         if (e instanceof FirebaseError && e.code === "auth/popup-blocked") {
           await signInWithRedirect(auth, provider);
           return;
@@ -163,6 +229,95 @@ function AuthPage() {
     }
   }
 
+  // ── Username / display-name step ──────────────────────────────────────────
+  if (step === "username") {
+    const statusIcon =
+      usernameStatus === "checking" ? (
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+      ) : usernameStatus === "available" ? (
+        <Check className="size-4 text-emerald-500" />
+      ) : usernameStatus === "taken" || usernameStatus === "invalid" ? (
+        <X className="size-4 text-red-500" />
+      ) : null;
+
+    const statusMessage =
+      usernameStatus === "taken"
+        ? "That username is already taken — choose another."
+        : usernameStatus === "invalid"
+        ? "3–20 characters: lowercase letters, numbers, - or _ only."
+        : usernameStatus === "available"
+        ? "Available!"
+        : null;
+
+    const canSubmit = usernameStatus === "available" && !usernameBusy;
+
+    return (
+      <main className="flex min-h-screen items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md">
+          <Card className="w-full border-border bg-card">
+            <CardHeader>
+              <CardTitle>Set up your profile</CardTitle>
+              <CardDescription>
+                Choose a username for your public profile link.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Display name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="display-name">Full Name <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input
+                  id="display-name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Alex Turner"
+                  disabled={usernameBusy}
+                  maxLength={60}
+                />
+              </div>
+              {/* Username */}
+              <div className="space-y-1.5">
+                <Label htmlFor="username">Username</Label>
+                <div className="relative">
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="e.g. alex-turner"
+                    disabled={usernameBusy}
+                    className={
+                      usernameStatus === "taken" || usernameStatus === "invalid"
+                        ? "border-red-500 focus-visible:ring-red-500 pr-9"
+                        : usernameStatus === "available"
+                        ? "border-emerald-500 focus-visible:ring-emerald-500 pr-9"
+                        : "pr-9"
+                    }
+                    onKeyDown={(e) => { if (e.key === "Enter" && canSubmit) void handleClaimUsername(); }}
+                  />
+                  {statusIcon && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2">{statusIcon}</span>
+                  )}
+                </div>
+                {statusMessage && (
+                  <p className={`text-xs ${usernameStatus === "available" ? "text-emerald-500" : "text-red-500"}`}>
+                    {statusMessage}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Your profile will be at /profile/{username || "yourname"}
+                </p>
+              </div>
+              <Button className="w-full" disabled={!canSubmit} onClick={() => void handleClaimUsername()}>
+                {usernameBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Continue
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
+  }
+
+  // ── Credentials step ──────────────────────────────────────────────────────
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">

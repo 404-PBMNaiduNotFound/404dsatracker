@@ -1,12 +1,16 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { db as firestore, auth } from "@/integrations/firebase/client";
@@ -25,6 +29,12 @@ import { loadSettings } from "./settings";
 // users/{uid}/pushSubscriptions/{id}   <- (was `push_subscriptions`)
 
 const userDoc = (uid: string) => doc(firestore, "users", uid);
+// usernames/{username} -> { uid } — a top-level collection used purely as a
+// uniqueness index, so we can check/claim a username without scanning all
+// user docs. Kept as a separate collection (rather than a field-only lookup)
+// so Firestore security rules can enforce "one username = one owner" with a
+// plain existence check.
+const usernameDoc = (username: string) => doc(firestore, "usernames", username);
 const daysCol = (uid: string) => collection(firestore, "users", uid, "days");
 // Use the stable `id` field (not dayNumber) as the Firestore document ID.
 // dayNumber is reassigned by renumber() every time a topic is skipped, so
@@ -44,24 +54,48 @@ const BATCH_SIZE = 400;
 // It is stored alongside the day so Firestore can sort by it on load,
 // giving us a stable order that doesn't depend on dayNumber (which changes
 // whenever a topic is skipped via renumber()).
-const dayToFields = (d: Day, seqIndex: number) => ({
-  id: d.id,
-  dayNumber: d.dayNumber,
-  seqIndex,
-  date: d.date,
-  section: d.section,
-  topic: d.topic,
-  subtopics: d.subtopics,
-  problems: d.problems,
-  checklist: d.checklist,
-  status: d.status,
-  notes: d.notes,
-  revisionNotes: d.revisionNotes,
-  skipped: d.skipped,
-  level: d.level ?? null,
-  ...(d.mergeSnapshot !== undefined && { mergeSnapshot: d.mergeSnapshot }),
-  updatedAt: serverTimestamp(),
-});
+/** Recursively strips `undefined` properties so Firestore setDoc never throws Unsupported field value: undefined */
+function sanitizeForFirestore<T>(obj: T): T {
+  if (obj === null || obj === undefined) return null as any;
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForFirestore) as any;
+  }
+  if (typeof obj === "object" && !(obj instanceof Date) && typeof (obj as any).toMillis !== "function") {
+    const clean: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, any>)) {
+      if (value !== undefined) {
+        clean[key] = sanitizeForFirestore(value);
+      }
+    }
+    return clean as T;
+  }
+  return obj;
+}
+
+const dayToFields = (d: Day, seqIndex: number) => {
+  const fields = {
+    id: d.id,
+    dayNumber: d.dayNumber,
+    seqIndex,
+    date: d.date,
+    section: d.section,
+    topic: d.topic,
+    subtopics: d.subtopics,
+    problems: d.problems,
+    checklist: d.checklist,
+    status: d.status,
+    notes: d.notes,
+    revisionNotes: d.revisionNotes,
+    skipped: d.skipped,
+    level: d.level ?? null,
+    ...(d.mergeSnapshot ? { mergeSnapshot: d.mergeSnapshot } : {}),
+    ...(d.skippedProblems ? { skippedProblems: d.skippedProblems } : {}),
+    ...(d.isRevisionDay ? { isRevisionDay: true } : {}),
+    ...(d.revisionDayNumbers ? { revisionDayNumbers: d.revisionDayNumbers } : {}),
+    updatedAt: serverTimestamp(),
+  };
+  return sanitizeForFirestore(fields);
+};
 
 
 const fieldsToDay = (data: Record<string, unknown>): Day => ({
@@ -81,6 +115,8 @@ const fieldsToDay = (data: Record<string, unknown>): Day => ({
   skipped: Boolean(data.skipped),
   level: (data.level as string | undefined) ?? undefined,
   mergeSnapshot: (data.mergeSnapshot as Day["mergeSnapshot"]) ?? undefined,
+  isRevisionDay: (data.isRevisionDay as boolean | undefined) ?? undefined,
+  revisionDayNumbers: (data.revisionDayNumbers as number[] | undefined) ?? undefined,
 });
 
 export interface PlanMeta {
@@ -181,9 +217,22 @@ export interface UserProfile {
   photoURL: string;
   bannerURL?: string;
   bio: string;
+  /** Private notes-to-self. Loaded for the owner's edit form only — the
+   * public profile page intentionally never reads or renders this field. */
+  aboutMe?: string;
+  /** Public, unique handle chosen at signup — drives the /profile/{username} URL. */
+  username?: string;
   codingProfiles: CodingProfiles;
   publicStats: PublicStats;
   completedProblems: CompletedProblemSnapshot[];
+}
+
+/** Username rules: 3-20 chars, lowercase letters/numbers/underscore/hyphen only. */
+export const USERNAME_REGEX = /^[a-z0-9_-]{3,20}$/;
+
+/** Normalizes user input the same way everywhere (case-insensitive handles). */
+export function normalizeUsername(raw: string): string {
+  return raw.trim().toLowerCase();
 }
 
 /** Reads the user profile doc. Works for owner and unauthenticated callers (public). */
@@ -196,6 +245,8 @@ export async function loadUserProfile(uid: string): Promise<Partial<UserProfile>
     photoURL: (data.photoURL as string) ?? "",
     bannerURL: (data.bannerURL as string) ?? "",
     bio: (data.bio as string) ?? "",
+    aboutMe: (data.aboutMe as string) ?? "",
+    username: (data.username as string) ?? "",
     codingProfiles: (data.codingProfiles as CodingProfiles) ?? {},
     publicStats: (data.publicStats as PublicStats) ?? { totalSolved: 0, byPlatform: {}, lastUpdated: "" },
     completedProblems: (data.completedProblems as CompletedProblemSnapshot[]) ?? [],
@@ -209,6 +260,86 @@ export async function saveUserProfile(uid: string, patch: Partial<UserProfile>) 
     { ...patch, updatedAt: serverTimestamp() },
     { merge: true },
   );
+}
+
+/**
+ * Quick, non-authoritative availability check for live "as you type" feedback.
+ * Not race-safe by itself (two people could pass this check for the same name
+ * within the same moment) — claimUsername() below re-checks atomically inside
+ * a transaction before actually reserving it, so a race here just means the
+ * final claim step surfaces "already taken" instead of the live indicator.
+ */
+export async function isUsernameAvailable(username: string): Promise<boolean> {
+  const u = normalizeUsername(username);
+  if (!USERNAME_REGEX.test(u)) return false;
+  const snap = await getDoc(usernameDoc(u));
+  return !snap.exists();
+}
+
+/**
+ * Atomically claims `username` for `uid`:
+ *  - throws "USERNAME_INVALID" if the format is wrong
+ *  - throws "USERNAME_TAKEN" if it's already claimed by a different uid
+ *  - safe to call again with the same uid+username (e.g. retry after a
+ *    network blip) — it's a no-op if that uid already owns it.
+ * Also mirrors the username onto users/{uid}.username so pages that already
+ * load the profile doc (Settings, Profile, public profile) get it for free.
+ */
+export async function claimUsername(uid: string, username: string): Promise<void> {
+  const u = normalizeUsername(username);
+  if (!USERNAME_REGEX.test(u)) {
+    throw new Error("USERNAME_INVALID");
+  }
+  await runTransaction(firestore, async (tx) => {
+    const uRef = usernameDoc(u);
+    const existing = await tx.get(uRef);
+    if (existing.exists() && (existing.data() as { uid?: string }).uid !== uid) {
+      throw new Error("USERNAME_TAKEN");
+    }
+    if (!existing.exists()) {
+      tx.set(uRef, { uid, createdAt: serverTimestamp() });
+    } else {
+      tx.set(uRef, { uid, updatedAt: serverTimestamp() }, { merge: true });
+    }
+    tx.set(userDoc(uid), { username: u, updatedAt: serverTimestamp() }, { merge: true });
+  });
+}
+
+/**
+ * Resolves a /profile/{identifier} route param to a uid. Tries it as a
+ * username first (new-style shareable links), then falls back to treating
+ * it as a raw Firebase uid — this keeps every link shared before this
+ * feature existed working exactly as before.
+ */
+export async function resolveProfileIdentifier(identifier: string): Promise<string | null> {
+  const asUsername = normalizeUsername(identifier);
+  if (USERNAME_REGEX.test(asUsername)) {
+    const nameSnap = await getDoc(usernameDoc(asUsername));
+    if (nameSnap.exists()) {
+      return ((nameSnap.data() as { uid?: string }).uid) ?? null;
+    }
+
+    // Self-heal path: a now-fixed bug used to let saveBasicInfo()/saveUsername()
+    // write `username` straight onto a profile doc without ever creating the
+    // usernames/{username} index doc above (silently swallowed a claim
+    // failure). Accounts that hit that bug have a working `username` field
+    // but no index entry, so the lookup above finds nothing even though the
+    // profile is real. Fall back to querying users by that field directly —
+    // users/{uid} is already world-readable, so this needs no extra access —
+    // and repair the missing index doc when we can (best-effort; only
+    // succeeds if the viewer happens to be signed in, per the security
+    // rules, but the resolution itself works either way).
+    const usersByName = await getDocs(
+      query(collection(firestore, "users"), where("username", "==", asUsername), limit(1)),
+    );
+    if (!usersByName.empty) {
+      const match = usersByName.docs[0];
+      setDoc(usernameDoc(asUsername), { uid: match.id, createdAt: serverTimestamp() }).catch(() => {});
+      return match.id;
+    }
+  }
+  const uidSnap = await getDoc(userDoc(identifier));
+  return uidSnap.exists() ? identifier : null;
 }
 
 /**
@@ -352,6 +483,23 @@ export async function listEvents(userId: string) {
  * functions/src/index.ts and MIGRATION_NOTES.md.
  */
 export async function deleteAccountData(userId: string) {
+  // 0. Release the claimed username (if any) so it can be reused, and so a
+  // deleted account's old /profile/{username} link doesn't stay squatted
+  // forever pointing at a uid that no longer resolves to anything.
+  try {
+    const profileSnap = await getDoc(userDoc(userId));
+    const claimedUsername = profileSnap.exists() ? (profileSnap.data().username as string | undefined) : undefined;
+    if (claimedUsername) {
+      const uRef = usernameDoc(claimedUsername);
+      const uSnap = await getDoc(uRef);
+      if (uSnap.exists() && (uSnap.data() as { uid?: string }).uid === userId) {
+        await deleteDoc(uRef);
+      }
+    }
+  } catch (e) {
+    console.warn("Error releasing username:", e);
+  }
+
   // 1. Delete all days documents
   await deleteAllDays(userId);
 

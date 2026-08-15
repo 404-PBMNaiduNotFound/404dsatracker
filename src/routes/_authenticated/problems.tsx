@@ -2,14 +2,34 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { SECTIONS } from "@/lib/a2z-data";
 import { EXTRA_PROBLEMS, type Sheet } from "@/lib/extra-problems-data";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, Search, X, ArrowUpDown, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ExternalLink, Search, X, ArrowUpDown, Filter, ChevronLeft, ChevronRight, Sparkles, Link2, Video, ChevronDown, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Difficulty } from "@/lib/types";
 import { useProblemCompletions } from "@/hooks/useProblemCompletions";
+import { getChatGPTAiPromptUrl } from "@/lib/aiTutorPrompt";
+import { CodeModal } from "@/components/CodeModal";
+import type { CodeSubmission } from "@/lib/db";
+
+function googleSearchUrl(problemName: string) {
+  const query = `${problemName} DSA solution explanation site:leetcode.com OR site:geeksforgeeks.org OR site:takeuforward.org`;
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+}
+
+function youtubeSearchUrl(problemName: string) {
+  const query = `${problemName} solution intuition explained NeetCode OR Striver`;
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -134,44 +154,44 @@ function canonicalPlatform(raw: string): Platform {
 function platformSearchLink(name: string, platform: Platform): string {
   const q = encodeURIComponent(name);
   switch (platform) {
-    case "LeetCode":   return `https://leetcode.com/problemset/?search=${q}`;
-    case "GFG":        return `https://www.geeksforgeeks.org/explore?search=${q}`;
+    case "LeetCode": return `https://leetcode.com/problemset/?search=${q}`;
+    case "GFG": return `https://www.geeksforgeeks.org/explore?search=${q}`;
     case "HackerRank": return `https://www.hackerrank.com/domains/data-structures`;
     case "CodeStudio": return `https://www.naukri.com/code360/search?q=${q}`;
-    case "CodeChef":   return `https://www.codechef.com/practice?search=${q}`;
-    case "AtCoder":    return `https://atcoder.jp/tasks?keyword=${q}`;
+    case "CodeChef": return `https://www.codechef.com/practice?search=${q}`;
+    case "AtCoder": return `https://atcoder.jp/tasks?keyword=${q}`;
     case "Codeforces": return `https://codeforces.com/problemset?query=${q}`;
-    case "TUF":        return `https://takeuforward.org/?s=${q}`;
-    default:           return `https://leetcode.com/problemset/?search=${q}`;
+    case "TUF": return `https://takeuforward.org/?s=${q}`;
+    default: return `https://leetcode.com/problemset/?search=${q}`;
   }
 }
 
 export const PLATFORM_META: Record<Platform, { label: string; color: string; bg: string; dot: string }> = {
-  All:        { label: "All",           color: "text-foreground",    bg: "bg-secondary",      dot: "bg-muted-foreground" },
-  LeetCode:   { label: "LeetCode",      color: "text-[#FFA116]",     bg: "bg-[#FFA116]/10",   dot: "bg-[#FFA116]" },
-  CodeStudio: { label: "CodeStudio",    color: "text-[#F97316]",     bg: "bg-[#F97316]/10",   dot: "bg-[#F97316]" },
-  GFG:        { label: "GeeksforGeeks", color: "text-[#2F8D46]",     bg: "bg-[#2F8D46]/10",   dot: "bg-[#2F8D46]" },
-  CodeChef:   { label: "CodeChef",      color: "text-[#5B4638]",     bg: "bg-[#5B4638]/10",   dot: "bg-[#5B4638]" },
-  HackerRank: { label: "HackerRank",    color: "text-[#2EC866]",     bg: "bg-[#2EC866]/10",   dot: "bg-[#2EC866]" },
-  AtCoder:    { label: "AtCoder",       color: "text-[#333333]",     bg: "bg-muted",          dot: "bg-foreground" },
-  Codeforces: { label: "Codeforces",    color: "text-[#1F8ACB]",     bg: "bg-[#1F8ACB]/10",   dot: "bg-[#1F8ACB]" },
-  TUF:        { label: "TUF",           color: "text-primary",       bg: "bg-primary/10",     dot: "bg-primary" },
-  Other:      { label: "Other",         color: "text-muted-foreground", bg: "bg-secondary",   dot: "bg-muted-foreground" },
+  All: { label: "All", color: "text-foreground", bg: "bg-secondary", dot: "bg-muted-foreground" },
+  LeetCode: { label: "LeetCode", color: "text-[#FFA116]", bg: "bg-[#FFA116]/10", dot: "bg-[#FFA116]" },
+  CodeStudio: { label: "CodeStudio", color: "text-[#F97316]", bg: "bg-[#F97316]/10", dot: "bg-[#F97316]" },
+  GFG: { label: "GeeksforGeeks", color: "text-[#2F8D46]", bg: "bg-[#2F8D46]/10", dot: "bg-[#2F8D46]" },
+  CodeChef: { label: "CodeChef", color: "text-[#5B4638]", bg: "bg-[#5B4638]/10", dot: "bg-[#5B4638]" },
+  HackerRank: { label: "HackerRank", color: "text-[#2EC866]", bg: "bg-[#2EC866]/10", dot: "bg-[#2EC866]" },
+  AtCoder: { label: "AtCoder", color: "text-[#333333]", bg: "bg-muted", dot: "bg-foreground" },
+  Codeforces: { label: "Codeforces", color: "text-[#1F8ACB]", bg: "bg-[#1F8ACB]/10", dot: "bg-[#1F8ACB]" },
+  TUF: { label: "TUF", color: "text-primary", bg: "bg-primary/10", dot: "bg-primary" },
+  Other: { label: "Other", color: "text-muted-foreground", bg: "bg-secondary", dot: "bg-muted-foreground" },
 };
 
 const DIFF_META: Record<string, { label: string; color: string; bg: string }> = {
-  Easy:   { label: "Easy",   color: "text-easy",   bg: "bg-easy/10" },
-  Medium: { label: "Medium", color: "text-medium",  bg: "bg-medium/10" },
-  Hard:   { label: "Hard",   color: "text-hard",    bg: "bg-hard/10" },
+  Easy: { label: "Easy", color: "text-easy", bg: "bg-easy/10" },
+  Medium: { label: "Medium", color: "text-medium", bg: "bg-medium/10" },
+  Hard: { label: "Hard", color: "text-hard", bg: "bg-hard/10" },
   Advanced: { label: "Advanced", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10" },
   Expert: { label: "Expert", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" },
   "Multiple Choice": { label: "MCQ", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
 };
 
 const SHEET_META: Record<SheetFilter, { color: string; bg: string }> = {
-  "All":               { color: "text-foreground",  bg: "bg-secondary" },
-  "Core 404":       { color: "text-primary",     bg: "bg-primary/10" },
-  "DSA 500 Practice":  { color: "text-[#00B8A3]",   bg: "bg-[#00B8A3]/10" },
+  "All": { color: "text-foreground", bg: "bg-secondary" },
+  "Core 404": { color: "text-primary", bg: "bg-primary/10" },
+  "DSA 500 Practice": { color: "text-[#00B8A3]", bg: "bg-[#00B8A3]/10" },
 };
 
 // ─── Unified flat problem type ───────────────────────────────────────────────
@@ -190,7 +210,7 @@ function buildAllProblems(): FlatProblem[] {
   let globalId = 1;
   const a2z: FlatProblem[] = SECTIONS.flatMap((sec) =>
     sec.problems
-            .map((p) => {
+      .map((p) => {
         const plat = canonicalPlatform(p.p);
         const link = p.l!; // every core problem now carries a verified link (see master-problems.ts)
         return {
@@ -241,12 +261,19 @@ function ProblemItem({
   done,
   onToggle,
   readOnly = false,
+  submission,
+  submitCode,
 }: {
   problem: FlatProblem;
   done: boolean;
   onToggle: () => void;
   readOnly?: boolean;
+  submission?: CodeSubmission;
+  submitCode?: (name: string, code: string, link?: string) => Promise<void>;
 }) {
+  const [codeModalOpen, setCodeModalOpen] = useState(false);
+  const hasSubmission = !!submission?.code;
+
   const diff = DIFF_META[problem.difficulty] ?? {
     label: problem.difficulty || "Medium",
     color: "text-purple-600 dark:text-purple-400",
@@ -259,7 +286,7 @@ function ProblemItem({
   return (
     <li
       className={cn(
-        "flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-secondary/40",
+        "flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 transition-colors hover:bg-secondary/40",
         done && "border-green-500/30 bg-green-500/5",
       )}
     >
@@ -320,17 +347,113 @@ function ProblemItem({
         {pm.label}
       </span>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Direct Link to Official Platform */}
+        {problem.link && (
+          <a
+            href={problem.link}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-1 text-xs font-semibold text-foreground transition-colors"
+            title={`Open official page on ${problem.platform}`}
+          >
+            <span className="hidden xs:inline">{problem.platform}</span>
+            <ExternalLink className="size-3 text-muted-foreground" />
+          </a>
+        )}
+
+        {/* Links Dropdown Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-1 text-xs font-semibold text-foreground transition-colors"
+              title="All problem links & resources"
+            >
+              <Link2 className="size-3.5 text-sky-400" />
+              <span>Links</span>
+              <ChevronDown className="size-3 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 rounded-2xl border border-white/15 bg-card/95 backdrop-blur-2xl p-1 shadow-2xl">
+            {problem.link && (
+              <DropdownMenuItem asChild>
+                <a href={problem.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <ExternalLink className="size-3.5 text-sky-400" />
+                  <span>{problem.platform} Official Page</span>
+                </a>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem asChild>
+              <a href={getChatGPTAiPromptUrl(problem.name)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                <Sparkles className="size-3.5 text-emerald-400" />
+                <span>ChatGPT AI Tutor & Prompt</span>
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={youtubeSearchUrl(problem.name)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-medium text-foreground">
+                <Video className="size-3.5 text-rose-500" />
+                <span>YouTube Solution Video</span>
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={googleSearchUrl(problem.name)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-medium text-foreground">
+                <Search className="size-3.5 text-sky-400" />
+                <span>Google Search Solution</span>
+              </a>
+            </DropdownMenuItem>
+            {hasSubmission && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setCodeModalOpen(true)} className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
+                  <Code2 className="size-3.5 text-emerald-400" />
+                  <span>View Submitted Code</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Solve Button */}
         <a
-          href={problem.link}
+          href={getChatGPTAiPromptUrl(problem.name)}
           target="_blank"
           rel="noreferrer"
-          className="ml-1 flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+          title="Solve with Interactive ChatGPT DSA AI Tutor"
         >
-          <ExternalLink className="size-3" />
+          <Sparkles className="size-3 text-emerald-400" />
           Solve
         </a>
+
+        {/* Code Button */}
+        <button
+          onClick={() => setCodeModalOpen(true)}
+          className={cn(
+            "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors",
+            hasSubmission
+              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25"
+              : "border border-border text-muted-foreground hover:border-primary hover:text-primary",
+          )}
+        >
+          <Code2 className="size-3" />
+          <span>{hasSubmission ? "Code" : "Add Code"}</span>
+        </button>
       </div>
+
+      <CodeModal
+        open={codeModalOpen}
+        onOpenChange={setCodeModalOpen}
+        problemName={problem.name}
+        existingSubmission={submission}
+        onSave={async (code, link) => {
+          if (submitCode) {
+            await submitCode(problem.name, code, link);
+          }
+          if (!done && !readOnly) {
+            onToggle();
+          }
+        }}
+      />
     </li>
   );
 }
@@ -340,17 +463,11 @@ function ProblemItem({
 function ProblemsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { completed, submissions, toggle, loading } = useProblemCompletions();
+  const { completed, submissions, submitCode, toggle, loading } = useProblemCompletions();
 
   // Read search params from TanStack Router
-  const paramPage = search.page ?? 1;
-  const paramStatus = search.status ?? "Incomplete";
-  const paramPlat = search.platform ?? "All";
-  const paramDiff = search.difficulty ?? "All";
-  const paramTopic = search.topic ?? "All";
-  const paramSheet = search.sheet ?? "All";
-  const paramSort = search.sort ?? "Default Order";
   const paramQuery = search.q ?? "";
+  const paramStatus = search.status ?? (paramQuery ? "All" : "Incomplete");
 
   const [pageSize, setPageSize] = useState<number>(10);
   const [initialJumpDone, setInitialJumpDone] = useState(false);
@@ -749,6 +866,8 @@ function ProblemsPage() {
               problem={p}
               done={completed.has(p.name)}
               onToggle={() => void toggle(p.name)}
+              submission={submissions[p.name]}
+              submitCode={submitCode}
               readOnly
             />
           ))}

@@ -14,11 +14,30 @@ import { getFirestore as getFirestoreFromFirebase, connectFirestoreEmulator } fr
 import { getStorage } from "firebase/storage";
 import { isSupported, type Messaging } from "firebase/messaging";
 
-// Suppress known Firebase Auth IndexedDB bug in v12.17.0
+// Suppress known Firebase Auth / Firestore IndexedDB internal closing warnings in browser
 if (typeof window !== "undefined") {
+  const isClosingOrHiddenError = (reason: any): boolean => {
+    if (!reason) return false;
+    const msg = typeof reason === "string" ? reason : reason?.message || reason?.name || String(reason);
+    return (
+      msg.includes("Database is closing") ||
+      msg.includes("Database is closing/hidden") ||
+      msg.includes("BloomFilter") ||
+      msg.includes("indexedDB")
+    );
+  };
+
   window.addEventListener("unhandledrejection", (e) => {
-    if (e.reason && e.reason.message === "Database is closing/hidden") {
+    if (isClosingOrHiddenError(e.reason)) {
       e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
+  window.addEventListener("error", (e) => {
+    if (isClosingOrHiddenError(e.error || e.message)) {
+      e.preventDefault();
+      e.stopPropagation();
     }
   });
 }

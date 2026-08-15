@@ -50,6 +50,8 @@ interface PlanCtx {
   shiftSchedule: (fromDate: string, days: number) => Promise<string>;
   /** Pull the first undone problem from the next active day into today, keeping both days' counts balanced. */
   borrowFromNext: (dayNumber: number) => Promise<void>;
+  /** Restores a day — unmerges merged topics, un-skips skipped days, or resets status/problems back to pending. */
+  restoreDay: (dayNumber: number) => Promise<void>;
   userId: string | null;
 }
 
@@ -267,9 +269,13 @@ export function PlanProvider({
       const day = days[idx];
       const problem = day.problems.find((p) => p.name === problemName);
       if (!problem) return;
-      const carried = { ...problem, done: false };
+      const carried = { ...problem, done: false, carriedFromDay: dayNumber };
 
-      const trimmedDay: Day = { ...day, problems: day.problems.filter((p) => p.name !== problemName) };
+      const trimmedDay: Day = {
+        ...day,
+        problems: day.problems.filter((p) => p.name !== problemName),
+        skippedProblems: [...(day.skippedProblems || []), carried],
+      };
 
       // Find the next *active* (non-skipped) day after this one.
       const nextIdx = days.findIndex((d, i) => i > idx && !d.skipped);
@@ -317,15 +323,19 @@ export function PlanProvider({
   const deleteDay = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async (dayNumber: number, _mode: "shrink" | "placeholder" = "shrink") => {
-      const idx = days.findIndex((d) => d.dayNumber === dayNumber);
-      if (idx === -1) return;
+      const day = days.find((d) => d.dayNumber === dayNumber);
+      if (!day) return;
+      const next = setSkippedById(days, day.id, true, startDate);
       await commitSequence(
-        days.filter((d) => d.dayNumber !== dayNumber),
+        next,
         "delete_day",
-        `Deleted day ${dayNumber} and shifted the schedule forward`,
+        `Deleted day ${dayNumber} ("${day.topic}") and shifted schedule forward`,
       );
+      toast.info(`Deleted day ${dayNumber} ("${day.topic}")`, {
+        description: "Schedule shifted forward. Want it back? Go to the Topic section and unskip it.",
+      });
     },
-    [days, commitSequence],
+    [days, startDate, commitSequence],
   );
 
   const skipTopic = useCallback(
@@ -546,7 +556,7 @@ export function PlanProvider({
       // Pick the first undone problem from the next day.
       const borrowedIdx = nextDay.problems.findIndex((p) => !p.done);
       if (borrowedIdx === -1) return;
-      const borrowed = nextDay.problems[borrowedIdx];
+      const borrowed = { ...nextDay.problems[borrowedIdx], borrowedFromDay: nextDay.dayNumber };
       // Add it to today, remove it from next day.
       const updatedToday: Day = {
         ...days[idx],
@@ -568,6 +578,54 @@ export function PlanProvider({
       );
     },
     [days, commitSequence],
+  );
+
+  const restoreDay = useCallback(
+    async (dayNumber: number) => {
+      const day = days.find((d) => d.dayNumber === dayNumber || (d.skipped && Math.abs(d.dayNumber) === Math.abs(dayNumber)));
+      if (!day) return;
+
+      if (day.status === "merged" || day.mergeSnapshot) {
+        await unmerge(day.dayNumber);
+        toast.success(`Restored merged topic "${day.topic}" into separate days!`);
+      } else if (day.skipped) {
+        await skipTopic(day.dayNumber, false);
+        toast.success(`Restored skipped topic "${day.topic}"!`);
+      } else if (day.status === "postponed") {
+        await updateDay(day.dayNumber, (d) => ({
+          ...d,
+          status: "pending" as const,
+        }));
+        toast.success(`Restored postponed status on Day ${day.dayNumber}!`);
+      } else if (day.skippedProblems && day.skippedProblems.length > 0) {
+        // Return skipped/deleted problem back to this day!
+        const probToRestore = day.skippedProblems[day.skippedProblems.length - 1];
+        const currentIdx = days.findIndex((d) => d.dayNumber === day.dayNumber);
+        
+        if (currentIdx !== -1) {
+          const cleanProb = { ...probToRestore, carriedFromDay: undefined };
+          const updatedCurrent: Day = {
+            ...day,
+            problems: [...day.problems, cleanProb],
+            skippedProblems: day.skippedProblems.filter((p) => p.name !== probToRestore.name),
+          };
+          const next = days.map((d, i) => {
+            if (i === currentIdx) return updatedCurrent;
+            return {
+              ...d,
+              problems: d.problems.filter((p) => p.name !== probToRestore.name),
+            };
+          });
+          await commitSequence(
+            next,
+            "restore_problem",
+            `Restored problem '${probToRestore.name}' back to Day ${day.dayNumber}`,
+          );
+          toast.success(`Restored "${probToRestore.name}" back to Day ${day.dayNumber}!`);
+        }
+      }
+    },
+    [days, unmerge, skipTopic, updateDay, commitSequence],
   );
 
   const value = useMemo<PlanCtx>(
@@ -593,6 +651,7 @@ export function PlanProvider({
       rebalance,
       shiftSchedule,
       borrowFromNext,
+      restoreDay,
       userId,
     }),
     [
@@ -617,6 +676,7 @@ export function PlanProvider({
       rebalance,
       shiftSchedule,
       borrowFromNext,
+      restoreDay,
       userId,
     ],
   );

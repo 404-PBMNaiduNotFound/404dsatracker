@@ -63,7 +63,7 @@ export default function ReviewPage() {
                             void updateDay(day.dayNumber, (d) => ({
                               ...d,
                               problems: d.problems.map((x) =>
-                                x.name === problem.name ? { ...x, done: v } : x,
+                                x.name === problem.name ? { ...x, done: v, completedAt: v ? todayIso() : undefined } : x,
                               ),
                             }))
                         : undefined
