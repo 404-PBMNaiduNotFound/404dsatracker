@@ -354,24 +354,38 @@ export function getContestStatus(c: Contest, now: number): ContestStatus {
 // ─── Firestore & LocalStorage helpers ─────────────────────────────────────────
 
 function storeDoc(uid: string) {
+  return doc(db!, "users", uid, "meta", "contestTracking");
+}
+
+function legacyStoreDoc(uid: string) {
   return doc(db!, "users", uid, "contestMeta", "tracking");
 }
 
 async function loadStored(uid: string): Promise<StoredData | null> {
   try {
-    const snap = await getDoc(storeDoc(uid));
+    let snap = await getDoc(storeDoc(uid));
+    if (!snap.exists()) {
+      snap = await getDoc(legacyStoreDoc(uid));
+    }
     if (!snap.exists()) return null;
     return snap.data() as StoredData;
-  } catch {
+  } catch (e) {
+    console.warn("Failed to load contest tracking from DB:", e);
     return null;
   }
 }
 
 async function saveStored(uid: string, data: Partial<StoredData>) {
   try {
-    await setDoc(storeDoc(uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
-  } catch {
-    // non-critical
+    const payload = { ...data, updatedAt: serverTimestamp() };
+    await setDoc(storeDoc(uid), payload, { merge: true });
+    try {
+      await setDoc(legacyStoreDoc(uid), payload, { merge: true });
+    } catch {
+      // ignore legacy fallback write failure
+    }
+  } catch (e) {
+    console.error("Failed to save contest tracking to DB:", e);
   }
 }
 
@@ -418,6 +432,16 @@ export function useContests() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const fetchedRef = useRef(false);
+  const userRef = useRef(user);
+  const contestsRef = useRef(contests);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    contestsRef.current = contests;
+  }, [contests]);
 
   // Tick every second for live countdowns
   useEffect(() => {
@@ -438,16 +462,17 @@ export function useContests() {
     };
   }, []);
 
+  const hydratedUidRef = useRef<string | null | undefined>(undefined);
+
   // Load from local storage immediately (zero-lag), then hydrate/refresh asynchronously
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
+    const currentUid = user?.uid;
 
     // Fast initial load from user-scoped localStorage
-    const local = getLocalData(user?.uid);
+    const local = getLocalData(currentUid);
     if (local.contests.length > 0) {
       setContests(local.contests);
-      setMarks(local.marks);
+      setMarks((prev) => ({ ...local.marks, ...prev }));
       setLoading(false);
     }
 
@@ -455,21 +480,17 @@ export function useContests() {
       setError(null);
 
       try {
-        let marksData: Record<string, UserMark> = {};
+        let marksData: Record<string, UserMark> = local.marks;
         let stored: StoredData | null = null;
 
         if (user) {
           stored = await loadStored(user.uid);
           if (stored?.marks) {
-            marksData = stored.marks;
-          } else {
-            marksData = local.marks;
+            marksData = { ...local.marks, ...stored.marks };
           }
-        } else {
-          marksData = local.marks;
         }
 
-        setMarks(marksData);
+        setMarks((prev) => ({ ...marksData, ...prev }));
 
         const nowMs = Date.now();
         const cachedList = stored?.cachedContests?.length ? stored.cachedContests : local.contests;
@@ -479,17 +500,19 @@ export function useContests() {
           setLoading(false);
         }
 
-        // Always fetch fresh contests asynchronously to ensure latest contests (CodeChef, CF, LeetCode, etc.)
-        const fresh = await fetchAllContests();
-        if (fresh.length > 0) {
-          setContests(fresh);
-          setLocalData(fresh, marksData, user?.uid, nowMs);
-          if (user) {
-            await saveStored(user.uid, {
-              cachedContests: fresh,
-              lastFetchedMs: nowMs,
-              marks: marksData,
-            });
+        if (hydratedUidRef.current !== currentUid) {
+          hydratedUidRef.current = currentUid;
+          const fresh = await fetchAllContests();
+          if (fresh.length > 0) {
+            setContests(fresh);
+            setLocalData(fresh, marksData, currentUid, nowMs);
+            if (user) {
+              await saveStored(user.uid, {
+                cachedContests: fresh,
+                lastFetchedMs: nowMs,
+                marks: marksData,
+              });
+            }
           }
         }
         setLoading(false);
@@ -527,9 +550,11 @@ export function useContests() {
         
         // Defer side effects to next tick so they don't run during React's render phase
         setTimeout(() => {
-          setLocalData(contests, next, user?.uid);
-          if (user) {
-            saveStored(user.uid, { marks: next });
+          const currentUid = userRef.current?.uid;
+          const currentContests = contestsRef.current;
+          setLocalData(currentContests, next, currentUid);
+          if (currentUid) {
+            saveStored(currentUid, { marks: next });
           }
           // Broadcast custom event so all active components sync instantly
           if (typeof window !== "undefined") {
@@ -544,7 +569,7 @@ export function useContests() {
         return next;
       });
     },
-    [user, contests]
+    []
   );
 
   // Derive final list with statuses

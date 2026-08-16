@@ -208,7 +208,7 @@ function MarkBar({
 }) {
   if (mark === "attended") {
     return (
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className="mt-2 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
         <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="size-3" />
           Attended ✓
@@ -216,6 +216,7 @@ function MarkBar({
         <button
           onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             onMark(contestId, null);
           }}
           className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -228,7 +229,7 @@ function MarkBar({
 
   if (mark === "missed_intentional") {
     return (
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className="mt-2 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
         <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500">
           <XCircle className="size-3" />
           Marked missed
@@ -236,6 +237,7 @@ function MarkBar({
         <button
           onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             onMark(contestId, null);
           }}
           className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -249,12 +251,16 @@ function MarkBar({
   return (
     <div
       className="mt-2 flex items-center gap-2"
-      onClick={(e) => e.preventDefault()}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
     >
       <span className="text-[11px] text-muted-foreground">Did you attend?</span>
       <button
         onClick={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           onMark(contestId, "attended");
         }}
         className="flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-800/60"
@@ -265,6 +271,7 @@ function MarkBar({
       <button
         onClick={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           onMark(contestId, "missed_intentional");
         }}
         className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-800/60 dark:text-gray-400 dark:hover:bg-gray-700/60"

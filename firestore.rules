@@ -66,6 +66,10 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
+      match /contestMeta/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
       match /revisionEvents/{eventId} {
         allow read, write: if isOwner(uid);
       }
@@ -94,6 +98,11 @@ service cloud.firestore {
 
       // Topic reminders stored per user.
       match /reminders/{reminderId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Wildcard fallback: allow the account owner read and write to any user subcollection
+      match /{allSubcollections=**} {
         allow read, write: if isOwner(uid);
       }
     }
