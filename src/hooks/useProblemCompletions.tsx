@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "./useAuth";
 import {
   loadProblemCompletions,
@@ -114,7 +115,13 @@ export function useProblemCompletions() {
         return next;
       });
 
-      await saveCodeSubmission(currentUid, name, sub, completed).catch(() => {});
+      // Saved to localStorage above already, so nothing is lost locally if this
+      // fails — but the user should know their submission hasn't synced to
+      // their account yet (e.g. won't show on another device or the public
+      // profile) rather than silently believing it's fully saved.
+      await saveCodeSubmission(currentUid, name, sub, completed).catch(() => {
+        toast.error("Saved on this device, but couldn't sync to your account. Check your connection.");
+      });
     },
     [user, completed],
   );
@@ -143,7 +150,9 @@ export function useProblemCompletions() {
         return next;
       });
 
-      await removeCodeSubmission(currentUid, name, completed).catch(() => {});
+      await removeCodeSubmission(currentUid, name, completed).catch(() => {
+        toast.error("Removed on this device, but couldn't sync the change to your account.");
+      });
     },
     [user, completed],
   );

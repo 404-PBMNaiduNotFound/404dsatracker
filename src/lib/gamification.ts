@@ -10,14 +10,60 @@ import type { Day } from "./types";
 export const dayTouched = (d: Day) =>
   d.problems.some((p) => p.done) || d.checklist.some((c) => c.done);
 
-export function currentStreak(days: Day[], today = todayIso()): number {
-  const past = days.filter((d) => d.date <= today).sort((a, b) => a.date.localeCompare(b.date));
-  let streak = 0;
-  for (let i = past.length - 1; i >= 0; i--) {
-    if (dayTouched(past[i])) streak += 1;
-    else if (i === past.length - 1 && past[i].date === today) continue; // today still open
-    else break;
+export function currentStreak(
+  days: Day[],
+  extraSubmissions?: Record<string, any> | any[],
+  today = todayIso()
+): number {
+  if (!days || days.length === 0) {
+    if (extraSubmissions) {
+      const list = Array.isArray(extraSubmissions) ? extraSubmissions : Object.values(extraSubmissions);
+      if (list.some((s) => (s?.submittedAt && s.submittedAt.startsWith(today)) || (s?.completedAt && s.completedAt.startsWith(today)))) {
+        return 1;
+      }
+    }
+    return 0;
   }
+
+  // Check if today has any activity (from days, backlog completedAt, or extraSubmissions)
+  let isTodayDone = false;
+  const todayDay = days.find((d) => d.date === today);
+  if (todayDay && (dayTouched(todayDay) || todayDay.problems.some((p) => p.done))) {
+    isTodayDone = true;
+  }
+  if (!isTodayDone && days.some((d) => d.problems.some((p) => p.done && p.completedAt && p.completedAt.startsWith(today)))) {
+    isTodayDone = true;
+  }
+  if (!isTodayDone && extraSubmissions) {
+    const list = Array.isArray(extraSubmissions) ? extraSubmissions : Object.values(extraSubmissions);
+    if (list.some((s) => (s?.submittedAt && s.submittedAt.startsWith(today)) || (s?.completedAt && s.completedAt.startsWith(today)))) {
+      isTodayDone = true;
+    }
+  }
+
+  const past = [...days].filter((d) => d.date <= today).sort((a, b) => a.date.localeCompare(b.date));
+  let streak = 0;
+
+  for (let i = past.length - 1; i >= 0; i--) {
+    const d = past[i];
+    const isToday = d.date === today;
+    const active = isToday
+      ? isTodayDone
+      : (dayTouched(d) || d.problems.some((p) => p.done && p.completedAt && p.completedAt.startsWith(d.date)));
+
+    if (active) {
+      streak += 1;
+    } else if (isToday) {
+      continue;
+    } else {
+      break;
+    }
+  }
+
+  if (isTodayDone && streak === 0) {
+    streak = 1;
+  }
+
   return streak;
 }
 

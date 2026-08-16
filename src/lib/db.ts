@@ -43,6 +43,9 @@ const daysCol = (uid: string) => collection(firestore, "users", uid, "days");
 const dayDocById = (uid: string, stableId: string) => doc(daysCol(uid), stableId);
 const planMetaDoc = (uid: string) => doc(firestore, "users", uid, "meta", "plan");
 const revisionEventsCol = (uid: string) => collection(firestore, "users", uid, "revisionEvents");
+/** Private notes (e.g. `aboutMe`) live here, NOT on the world-readable
+ * users/{uid} root doc — owner-only per firestore.rules. */
+const privateProfileDoc = (uid: string) => doc(firestore, "users", uid, "private", "profile");
 
 
 /** Cap on stored chat history per day — Firestore documents have a 1MB limit. */
@@ -157,7 +160,11 @@ async function ensureProfile(uid: string) {
   await setDoc(
     userDoc(uid),
     {
-      email: user?.email ?? "",
+      // NOTE: intentionally no `email` field here — users/{uid} is
+      // world-readable (public profile page), and nothing in the app reads
+      // email back from Firestore anyway (auth.currentUser.email is used
+      // everywhere instead). Keeping it out avoids leaking it to anyone who
+      // calls getDoc() directly from devtools.
       displayName: user?.displayName ?? user?.email?.split("@")[0] ?? "",
       createdAt: serverTimestamp(),
     },
@@ -235,7 +242,15 @@ export function normalizeUsername(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-/** Reads the user profile doc. Works for owner and unauthenticated callers (public). */
+/**
+ * Reads the PUBLIC-safe subset of the user profile doc. Works for owner and
+ * unauthenticated callers alike — this is what the public /profile/[uid]
+ * page uses, so it deliberately never fetches `aboutMe` (private notes-to-
+ * self, lives in a separate owner-only doc — see loadOwnerProfile below).
+ * Not filtering this at read-time used to mean aboutMe was sent to every
+ * anonymous visitor even though the UI didn't render it; now it's never
+ * fetched for public callers in the first place.
+ */
 export async function loadUserProfile(uid: string): Promise<Partial<UserProfile>> {
   const snap = await getDoc(userDoc(uid));
   if (!snap.exists()) return {};
@@ -245,7 +260,6 @@ export async function loadUserProfile(uid: string): Promise<Partial<UserProfile>
     photoURL: (data.photoURL as string) ?? "",
     bannerURL: (data.bannerURL as string) ?? "",
     bio: (data.bio as string) ?? "",
-    aboutMe: (data.aboutMe as string) ?? "",
     username: (data.username as string) ?? "",
     codingProfiles: (data.codingProfiles as CodingProfiles) ?? {},
     publicStats: (data.publicStats as PublicStats) ?? { totalSolved: 0, byPlatform: {}, lastUpdated: "" },
@@ -253,13 +267,45 @@ export async function loadUserProfile(uid: string): Promise<Partial<UserProfile>
   };
 }
 
-/** Merges profile patch into users/{uid}. Owner-only (enforced by Firestore rules). */
+/**
+ * Owner-only profile read: everything loadUserProfile returns, PLUS the
+ * private `aboutMe` field (pulled from users/{uid}/private/profile, which
+ * Firestore rules restrict to isOwner(uid)). Use this on self-edit screens
+ * (Settings, DeveloperProfilePage, MergedTodayProfile) — never on the public
+ * profile route.
+ */
+export async function loadOwnerProfile(uid: string): Promise<Partial<UserProfile>> {
+  const [pub, privSnap] = await Promise.all([
+    loadUserProfile(uid),
+    getDoc(privateProfileDoc(uid)),
+  ]);
+  return {
+    ...pub,
+    aboutMe: privSnap.exists() ? ((privSnap.data().aboutMe as string) ?? "") : "",
+  };
+}
+
+/**
+ * Merges a profile patch. Public fields (displayName, bio, photoURL, etc.)
+ * go to the world-readable users/{uid} doc; `aboutMe` is routed to the
+ * private users/{uid}/private/profile doc instead, so it never becomes
+ * world-readable even though it travels through this one function. Both
+ * writes remain owner-only (enforced by Firestore rules).
+ */
 export async function saveUserProfile(uid: string, patch: Partial<UserProfile>) {
-  await setDoc(
-    userDoc(uid),
-    { ...patch, updatedAt: serverTimestamp() },
-    { merge: true },
-  );
+  const { aboutMe, ...publicPatch } = patch;
+  const writes: Promise<unknown>[] = [];
+  if (Object.keys(publicPatch).length > 0) {
+    writes.push(
+      setDoc(userDoc(uid), { ...publicPatch, updatedAt: serverTimestamp() }, { merge: true }),
+    );
+  }
+  if (aboutMe !== undefined) {
+    writes.push(
+      setDoc(privateProfileDoc(uid), { aboutMe, updatedAt: serverTimestamp() }, { merge: true }),
+    );
+  }
+  await Promise.all(writes);
 }
 
 /**

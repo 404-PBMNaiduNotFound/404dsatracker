@@ -12,8 +12,9 @@ export const metadata: Metadata = {
     title: 'DSA⁴⁰⁴',
   },
   icons: {
-    icon: '/app-icon.jpg',
-    apple: '/app-icon.jpg',
+    icon: '/app-icon-circular.png',
+    apple: '/app-icon-circular.png',
+    shortcut: '/favicon.ico',
   },
 }
 

@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
 import { useProblemCompletions } from "@/hooks/useProblemCompletions";
 import {
-  loadUserProfile,
+  loadOwnerProfile,
   saveUserProfile,
   saveAvatarBase64,
   saveBannerBase64,
@@ -260,7 +260,7 @@ export function MergedTodayProfile() {
     if (localBanner) setBannerURL(localBanner);
 
     setLoadingProfile(true);
-    loadUserProfile(user.uid)
+    loadOwnerProfile(user.uid)
       .then((p) => {
         setDisplayName(p.displayName ?? user.displayName ?? "");
         setBio(p.bio ?? "");
@@ -305,7 +305,7 @@ export function MergedTodayProfile() {
   const inactivityInfo = useMemo(() => getInactivityDays(days, user?.uid), [days, user]);
 
   // Streak — standard derived streak from active plan days
-  const streakCount = useMemo(() => currentStreak(days), [days]);
+  const streakCount = useMemo(() => currentStreak(days, submissions), [days, submissions]);
 
   const userNameDisplay = displayName || user?.displayName || user?.email?.split("@")[0] || "Developer";
 

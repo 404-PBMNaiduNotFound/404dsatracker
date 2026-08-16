@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
 import { useProblemCompletions } from "@/hooks/useProblemCompletions";
 import {
-  loadUserProfile,
+  loadOwnerProfile,
   saveUserProfile,
   saveAvatarBase64,
   saveBannerBase64,
@@ -180,7 +180,7 @@ export function DeveloperProfilePage() {
     if (localBanner) setBannerURL(localBanner);
 
     setLoadingProfile(true);
-    loadUserProfile(user.uid)
+    loadOwnerProfile(user.uid)
       .then((p) => {
         setDisplayName(p.displayName ?? user.displayName ?? "");
         setBio(p.bio ?? "");
@@ -267,8 +267,61 @@ export function DeveloperProfilePage() {
     }
   }, [user, usernameDraft, username]);
 
+  const handleRemovePhoto = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      setPhotoURL("");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`local_avatar_url_${user.uid}`);
+        localStorage.removeItem(`dsa_avatar_${user.uid}`);
+      }
+      await saveUserProfile(user.uid, { photoURL: "" });
+      toast.success("Profile photo removed!");
+    } catch (err) {
+      toast.error("Failed to remove profile photo");
+    }
+  }, [user]);
+
+  const handleRemoveBanner = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      setBannerURL("");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`local_banner_url_${user.uid}`);
+      }
+      await saveUserProfile(user.uid, { bannerURL: "" });
+      toast.success("Cover banner removed!");
+    } catch (err) {
+      toast.error("Failed to remove cover banner");
+    }
+  }, [user]);
+
+  const handleRemoveProfile = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      setPhotoURL("");
+      setBannerURL("");
+      setBio("");
+      setDisplayName("");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`local_avatar_url_${user.uid}`);
+        localStorage.removeItem(`local_banner_url_${user.uid}`);
+        localStorage.removeItem(`dsa_avatar_${user.uid}`);
+      }
+      await saveUserProfile(user.uid, {
+        photoURL: "",
+        bannerURL: "",
+        bio: "",
+        displayName: "",
+      });
+      toast.success("Profile details & images removed successfully!");
+    } catch (err) {
+      toast.error("Failed to remove profile details", { description: (err as Error).message });
+    }
+  }, [user]);
+
   // — Computed stats
-  const streakCount = useMemo(() => currentStreak(days), [days]);
+  const streakCount = useMemo(() => currentStreak(days, submissions), [days, submissions]);
   const badges = useMemo(() => computeBadges(days), [days]);
 
   const completedProblems = useMemo<CompletedProblemSnapshot[]>(() => {
@@ -466,28 +519,28 @@ export function DeveloperProfilePage() {
         </div>
 
         {/* Avatar + Info Row */}
-        <div className="px-6 pb-6 pt-0 flex flex-wrap items-end justify-between gap-4 relative">
+        <div className="px-4 sm:px-6 pb-6 pt-0 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-end justify-between gap-4 relative">
           {/* Avatar */}
-          <div className="flex items-end gap-4">
+          <div className="flex items-end gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="-mt-14 sm:-mt-16 flex size-28 sm:size-32 shrink-0 overflow-hidden rounded-full border-[5px] border-card bg-card shadow-2xl items-center justify-center z-10 cursor-pointer group relative"
+              className="-mt-12 sm:-mt-16 flex size-20 sm:size-32 shrink-0 overflow-hidden rounded-full border-[4px] sm:border-[5px] border-card bg-card shadow-2xl items-center justify-center z-10 cursor-pointer group relative"
               title="Click to change avatar"
             >
               {photoURL
                 ? <img src={photoURL} alt="avatar" className="size-full object-cover" />
-                : <span className="text-4xl font-extrabold text-primary">{initials}</span>
+                : <span className="text-2xl sm:text-4xl font-extrabold text-primary">{initials}</span>
               }
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white rounded-full">
                 <Camera className="size-5" />
               </div>
             </div>
 
-            <div className="pb-1">
-              <h1 className="text-2xl font-black tracking-tight text-foreground">{userNameDisplay}</h1>
-              {username && <p className="text-xs font-medium text-primary">@{username}</p>}
-              <p className="text-sm text-muted-foreground">{bio || "SDE Aspirant · DSA Prep Tracker"}</p>
-              <div className="flex items-center gap-2 mt-2">
+            <div className="pb-1 min-w-0 flex-1">
+              <h1 className="text-lg sm:text-2xl font-black tracking-tight text-foreground truncate">{userNameDisplay}</h1>
+              {username && <p className="text-xs font-medium text-primary truncate">@{username}</p>}
+              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-1">{bio || "SDE Aspirant · DSA Prep Tracker"}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className="flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-0.5 text-xs font-bold text-orange-400">
                   <Flame className="size-3.5 animate-pulse" /> {streakCount} Day Streak
                 </span>
@@ -499,13 +552,27 @@ export function DeveloperProfilePage() {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 pb-1">
+          <div className="flex flex-wrap items-center gap-2 pb-1 w-full sm:w-auto">
             <ThemedTooltip hint="Copy shareable public profile link">
-              <Button variant="outline" size="sm" className="h-8 text-xs px-3 gap-1.5 rounded-xl border-white/10" onClick={copyShareLink}>
+              <Button variant="outline" size="sm" className="h-8 text-xs px-3 gap-1.5 rounded-xl border-white/10 w-full sm:w-auto" onClick={copyShareLink}>
                 {copied ? <Check className="size-3.5 text-emerald-400" /> : <Share2 className="size-3.5 text-primary" />}
                 <span>{copied ? "Copied!" : "Share Profile"}</span>
               </Button>
             </ThemedTooltip>
+
+            {(photoURL || bannerURL || displayName || bio) && (
+              <ThemedTooltip hint="Reset custom photo, cover banner, and profile details">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs px-3 gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-colors w-full sm:w-auto"
+                  onClick={handleRemoveProfile}
+                >
+                  <Trash2 className="size-3.5" />
+                  <span>Remove Profile</span>
+                </Button>
+              </ThemedTooltip>
+            )}
           </div>
         </div>
       </section>
@@ -527,9 +594,21 @@ export function DeveloperProfilePage() {
               <div className="size-12 overflow-hidden rounded-full border border-primary/40 bg-muted shrink-0 flex items-center justify-center">
                 {photoURL ? <img src={photoURL} alt="avatar" className="size-full object-cover" /> : <span className="font-bold text-primary">{initials}</span>}
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-                {uploadingAvatar ? "Uploading…" : "Upload Photo"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+                  {uploadingAvatar ? "Uploading…" : "Upload Photo"}
+                </Button>
+                {photoURL && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/20"
+                    onClick={handleRemovePhoto}
+                  >
+                    <Trash2 className="size-3.5 mr-1" /> Remove
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -543,9 +622,21 @@ export function DeveloperProfilePage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-purple-600/30" />
                 {bannerURL && <img src={bannerURL} alt="banner" className="absolute inset-0 w-full h-full object-cover" />}
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => bannerInputRef.current?.click()} disabled={uploadingBanner}>
-                {uploadingBanner ? "Uploading…" : "Upload Banner"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => bannerInputRef.current?.click()} disabled={uploadingBanner}>
+                  {uploadingBanner ? "Uploading…" : "Upload Banner"}
+                </Button>
+                {bannerURL && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/20"
+                    onClick={handleRemoveBanner}
+                  >
+                    <Trash2 className="size-3.5 mr-1" /> Remove
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -691,15 +782,17 @@ export function DeveloperProfilePage() {
               </div>
               <div className="space-y-2">
                 {draftCustomLinks.map((cl, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+                  <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <Input value={cl.label} onChange={(e) => setDraftCustomLinks((prev) => { const n = [...prev]; n[idx] = { ...n[idx], label: e.target.value }; return n; })}
-                      placeholder="Label (e.g. Portfolio)" className="w-36 shrink-0 bg-background/40 border-white/10 text-sm" />
-                    <Input value={cl.url} onChange={(e) => setDraftCustomLinks((prev) => { const n = [...prev]; n[idx] = { ...n[idx], url: e.target.value }; return n; })}
-                      placeholder="https://..." className="bg-background/40 border-white/10 text-sm" />
-                    <button type="button" onClick={() => setDraftCustomLinks((prev) => prev.filter((_, i) => i !== idx))}
-                      className="shrink-0 rounded-md p-1.5 text-rose-400 hover:bg-rose-500/10 transition-colors">
-                      <Trash2 className="size-4" />
-                    </button>
+                      placeholder="Label (e.g. Portfolio)" className="w-full sm:w-36 shrink-0 bg-background/40 border-white/10 text-sm" />
+                    <div className="flex items-center gap-2">
+                      <Input value={cl.url} onChange={(e) => setDraftCustomLinks((prev) => { const n = [...prev]; n[idx] = { ...n[idx], url: e.target.value }; return n; })}
+                        placeholder="https://..." className="min-w-0 flex-1 bg-background/40 border-white/10 text-sm" />
+                      <button type="button" onClick={() => setDraftCustomLinks((prev) => prev.filter((_, i) => i !== idx))}
+                        className="shrink-0 rounded-md p-1.5 text-rose-400 hover:bg-rose-500/10 transition-colors">
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -30,11 +30,6 @@ export function DayDetailModal({ date, problems, onClose }: DayDetailModalProps)
               <li key={i} className="flex flex-col rounded border border-border bg-muted p-2">
                 <span className="font-medium">{p.name ?? "Problem"}</span>
                 {p.platform && <span className="text-xs text-muted-foreground">{p.platform}</span>}
-                {p.link && (
-                  <a href={p.link} target="_blank" rel="noopener noreferrer" className="mt-1 text-xs text-primary underline">
-                    View Submission
-                  </a>
-                )}
               </li>
             ))}
           </ul>

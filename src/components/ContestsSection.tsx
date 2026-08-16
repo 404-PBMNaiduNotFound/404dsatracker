@@ -94,8 +94,6 @@ const PLATFORM_STYLES: Record<string, string> = {
     "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
   HackerEarth:
     "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
-  ICPC:
-    "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
 };
 
 const STATUS_STYLES = {
@@ -366,7 +364,7 @@ export function ContestProgress({ contests }: { contests: ContestWithStatus[] })
   const pct = total === 0 ? 0 : Math.round((attended.length / total) * 100);
 
   // Platform breakdown
-  const platforms = ["Codeforces", "CodeChef", "LeetCode", "ICPC", "HackerRank", "HackerEarth"] as const;
+  const platforms = ["Codeforces", "CodeChef", "LeetCode", "HackerRank", "HackerEarth"] as const;
   const platformStats = platforms.map((p) => {
     const pEnded = allEnded.filter((c) => c.platform === p);
     const pAttended = pEnded.filter((c) => c.mark === "attended");
@@ -470,7 +468,7 @@ function LoadingGrid() {
 function SourceFooter() {
   return (
     <p className="mt-4 text-right text-[11px] text-muted-foreground">
-      Sources: Codeforces · CodeChef · LeetCode · ICPC · HackerRank · HackerEarth · All times in IST (UTC +5:30)
+      Sources: Codeforces · CodeChef · LeetCode · HackerRank · HackerEarth · All times in IST (UTC +5:30)
     </p>
   );
 }
@@ -580,12 +578,6 @@ const PRACTICE_HUB_LINKS = [
     bg: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20",
   },
   {
-    platform: "ICPC",
-    url: "https://icpc.global/",
-    label: "Past Regional & Qualifier Rounds",
-    bg: "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20",
-  },
-  {
     platform: "HackerRank",
     url: "https://www.hackerrank.com/contests",
     label: "Contest Archives",
@@ -628,7 +620,7 @@ export function ContestsPageSection() {
           {error}
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Live data comes from Codeforces, LeetCode, and Kontests.net APIs. Check
+          Live data comes from Codeforces, LeetCode, CodeChef, HackerRank, and HackerEarth. Check
           your internet connection or try refreshing.
         </p>
       </div>

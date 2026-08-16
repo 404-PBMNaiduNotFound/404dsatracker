@@ -134,14 +134,14 @@ export default function TopicsPage() {
               className="rounded-2xl border-2 border-border bg-card/50 px-4 overflow-hidden"
             >
               {/* Level header */}
-              <div className="flex w-full items-center gap-3 pt-1">
+              <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 pt-1">
                 <Icon className={`size-5 shrink-0 ${meta.color}`} aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                   <AccordionTrigger className="hover:no-underline py-3">
-                    <span className="font-display text-lg font-bold">{meta.label}</span>
+                    <span className="font-display text-base sm:text-lg font-bold truncate">{meta.label}</span>
                   </AccordionTrigger>
                 </div>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground pl-8 sm:pl-0">
                   {totalDone}/{totalProblems} · {sections.length} topic{sections.length === 1 ? "" : "s"}
                 </span>
               </div>
@@ -158,15 +158,15 @@ export default function TopicsPage() {
                       value={s.section}
                       className="rounded-xl border border-border bg-background px-3"
                     >
-                      <div className="flex w-full items-center gap-2 pt-1">
-                        <div className="min-w-0 flex-1">
+                      <div className="flex w-full flex-wrap items-center gap-2 pt-1">
+                        <div className="min-w-0 flex-1 basis-full sm:basis-auto">
                           <AccordionTrigger className="hover:no-underline py-2">
                             <span className="truncate font-display font-semibold text-sm">{s.section}</span>
                           </AccordionTrigger>
                         </div>
 
                         {/* Difficulty breakdown badges */}
-                        <div className="flex shrink-0 items-center gap-1">
+                        <div className="flex shrink-0 flex-wrap items-center gap-1 pl-0 sm:pl-0">
                           {s.diffCounts.easy > 0 && (
                             <span className="rounded px-1.5 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 tabular-nums">
                               {s.diffCounts.easy}E

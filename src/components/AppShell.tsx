@@ -9,6 +9,8 @@ import { auth } from "@/integrations/firebase/client";
 import { usePlan } from "@/hooks/usePlan";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
+import { useProblemCompletions } from "@/hooks/useProblemCompletions";
+import { loadUserProfile } from "@/lib/db";
 import { currentStreak } from "@/lib/gamification";
 import { formatDate } from "@/lib/plan";
 import { Button } from "@/components/ui/button";
@@ -394,9 +396,21 @@ export function AppShell({ email, children }: { email: string; children: React.R
   const router = useRouter();
   const pathname = usePathname();
   const qc = useQueryClient();
-  const streak = currentStreak(days);
+  const { submissions } = useProblemCompletions();
+  const streak = currentStreak(days, submissions);
 
-  const displayName = user?.displayName || email?.split("@")[0] || "Developer";
+  const [profileData, setProfileData] = useState<{ displayName?: string; username?: string } | null>(null);
+
+  useEffect(() => {
+    if (user?.uid) {
+      loadUserProfile(user.uid).then((p) => {
+        if (p) setProfileData({ displayName: p.displayName, username: p.username });
+      }).catch(() => {});
+    }
+  }, [user?.uid]);
+
+  const usernameDisplay = profileData?.username || profileData?.displayName || user?.displayName || email?.split("@")[0] || "Developer";
+  const displayName = usernameDisplay;
   const initials = displayName[0]?.toUpperCase() ?? "?";
   const photoURL = user?.photoURL;
 

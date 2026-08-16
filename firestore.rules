@@ -36,8 +36,20 @@ service cloud.firestore {
       // Public profile fields (displayName, photoURL, bio, codingProfiles, publicStats)
       // are intentionally world-readable so the shareable /profile/[uid] route works
       // without login. Write access remains owner-only.
+      //
+      // IMPORTANT: this doc must NEVER contain private fields (email, etc.) —
+      // Firestore rules can't do field-level filtering, so "allow read: if true"
+      // exposes the ENTIRE document, not just the fields the app's UI happens to
+      // display. Private data (e.g. the `aboutMe` notes-to-self field) lives in
+      // the owner-only users/{uid}/private/{docId} subcollection below instead.
       allow read: if true;
       allow write: if isOwner(uid);
+
+      // Private profile data (e.g. `aboutMe`) — NEVER world-readable, unlike the
+      // parent doc. Read/write restricted to the account owner only.
+      match /private/{docId} {
+        allow read, write: if isOwner(uid);
+      }
 
       // Plan days, sync metadata, notes/chat history, and revision-event log —
       // all freely readable/writable by their owner, same as the old
@@ -59,7 +71,8 @@ service cloud.firestore {
       }
 
       match /settings/{docId} {
-        allow read, write: if isOwner(uid);
+        allow read: if true;
+        allow write: if isOwner(uid);
       }
 
       // Achievements are informational badges. The app currently computes

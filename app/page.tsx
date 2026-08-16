@@ -28,10 +28,13 @@ import {
   ExternalLink,
   Mail,
   MessageSquare,
+  Users,
 } from "lucide-react";
 import { CORE_SECTIONS } from "@/lib/master-problems";
 import { ALL_PROBLEMS } from "@/lib/problems";
 import { seedDays, TOTAL_PROBLEMS } from "@/lib/plan";
+import { getCountFromServer, collection } from "firebase/firestore";
+import { db } from "@/integrations/firebase/client";
 
 /* ─── real, derived homepage stats (single source of truth) ─── */
 const REAL_SECTIONS_COUNT = CORE_SECTIONS.length; // 42
@@ -99,6 +102,27 @@ function useCountUp(target: number, duration = 1200) {
     return () => obs.disconnect();
   }, [target, duration]);
   return ref;
+}
+
+/* ─── live user count, read from Firestore (users collection count) ─── */
+function useLiveUserCount() {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getCountFromServer(collection(db, "users"));
+        if (!cancelled) setCount(snap.data().count);
+      } catch {
+        // Network hiccup or rules issue — fail quietly, stat card just hides.
+        if (!cancelled) setCount(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return count;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -263,13 +287,31 @@ function HeroSection() {
    STATS BAR
 ═══════════════════════════════════════════════════════════ */
 function StatsBar() {
+  const liveUserCount = useLiveUserCount();
   const c474 = useCountUp(REAL_TOTAL_PROBLEMS);
   const c18 = useCountUp(REAL_SECTIONS_COUNT);
   const c775 = useCountUp(REAL_ALL_PROBLEMS_COUNT);
+  const cUsers = useCountUp(liveUserCount ?? 0);
   const c5 = useCountUp(2);
   const c2 = useCountUp(2);
 
   const stats = [
+    // Only shown once we actually have a live count — avoids flashing "0
+    // Learners" while the Firestore aggregation query is in flight.
+    ...(liveUserCount !== null
+      ? [
+          {
+            ref: cUsers,
+            value: liveUserCount,
+            label: "Learners tracking progress",
+            sub: "Live count, synced from our database",
+            prefix: "",
+            icon: Users,
+            iconColor: "text-rose-600 dark:text-rose-400",
+            iconBg: "bg-rose-500/10",
+          },
+        ]
+      : []),
     {
       ref: c474,
       value: REAL_TOTAL_PROBLEMS,
@@ -325,7 +367,7 @@ function StatsBar() {
   return (
     <div className="border-y border-border bg-muted/30">
       <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {stats.map((s) => {
             const Icon = s.icon;
             return (
@@ -785,7 +827,7 @@ const EXPLORER_PAGES = [
     title: "Contests",
     tagline: "Never miss a CP round",
     bullets: [
-      { text: "Live, upcoming, and missed contests from LeetCode, Codeforces, CodeChef, HackerRank, HackerEarth & ICPC" },
+      { text: "Live, upcoming, and missed contests from LeetCode, Codeforces, CodeChef, HackerRank & HackerEarth" },
       { text: "Automatic 30-minute email reminder before any contest starts" },
       { text: "Sorted by start time — live contests float to the top with a green indicator" },
       { text: "Duration shown for every contest so you can plan around it" },
@@ -1217,7 +1259,7 @@ function CreditsAndDisclaimer() {
 
           <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
             <p>
-              Have questions, feedback, bug reports, or feature requests? Feel free to reach out directly.
+              Have any queries, feedback, bug reports, or feature requests? Mail us directly at the address below — we typically respond within a day.
             </p>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2">
@@ -1226,7 +1268,7 @@ function CreditsAndDisclaimer() {
                 <div className="flex flex-col">
                   <span className="text-xs text-muted-foreground font-mono">Direct Email</span>
                   <a
-                    href="mailto:bhanupolimera.6@gmail.com"
+                    href="mailto:404dsatracker@gmail.com?subject=DSA%E2%81%B4%E2%81%B0%E2%81%B4%20Support%20Query"
                     className="font-medium text-foreground hover:text-primary transition-colors"
                   >
                     404dsatracker@gmail.com
@@ -1298,7 +1340,7 @@ function CreditsAndDisclaimer() {
             </h4>
             <div className="flex flex-col sm:flex-row flex-wrap gap-3 text-sm">
               <a
-                href="https://github.com/404-PBMNaiduNotFound/tracker"
+                href="https://github.com/404-PBMNaiduNotFound/404dsatracker"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-lg border border-border/80 bg-background/50 px-3.5 py-2 text-xs font-mono font-medium hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all sm:w-auto"

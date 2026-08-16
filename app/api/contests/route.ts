@@ -5,14 +5,17 @@ export const revalidate = 0;
 
 export interface Contest {
   id: string;
-  platform: "Codeforces" | "CodeChef" | "LeetCode" | "ICPC" | "HackerRank" | "HackerEarth";
+  platform: "Codeforces" | "CodeChef" | "LeetCode" | "HackerRank" | "HackerEarth";
   title: string;
   startMs: number;
   durationMs: number;
   url: string;
 }
 
-const ICPC_REGEX = /icpc|regional|qualifier|world final/i;
+// Codeforces should only surface real DSA / competitive-programming rounds —
+// exclude training camps, onsite practice sessions, and other non-CP listings
+// that occasionally show up in the public contest list.
+const CF_NON_CP_REGEX = /training|marathon|onsite|hiring\s*test|welcome\s*round/i;
 
 // ─── CodeChef Fetcher ──────────────────────────────────────────────────────────
 async function fetchCodeChef(): Promise<Contest[]> {
@@ -50,11 +53,10 @@ async function fetchCodeChef(): Promise<Contest[]> {
         const endMs = new Date(c.contest_end_date_iso || c.contest_end_date).getTime();
         const fallbackDuration = parseInt(c.contest_duration || "120", 10) * 60 * 1000;
         const durationMs = (!isNaN(endMs) && endMs > startMs) ? (endMs - startMs) : fallbackDuration;
-        const isIcpc = ICPC_REGEX.test(c.contest_name || "");
 
         return {
           id: `cc-${c.contest_code || c.contest_name}`,
-          platform: isIcpc ? "ICPC" : "CodeChef",
+          platform: "CodeChef" as const,
           title: c.contest_name,
           startMs,
           durationMs,
@@ -88,19 +90,18 @@ async function fetchCodeforces(): Promise<Contest[]> {
     return (json.result as any[])
       .filter((c: any) => {
         const startMs = c.startTimeSeconds * 1000;
-        return c.phase !== "FINISHED" || (now - startMs < windowMs);
+        const inWindow = c.phase !== "FINISHED" || (now - startMs < windowMs);
+        const isCoreCp = !CF_NON_CP_REGEX.test(c.name || "");
+        return inWindow && isCoreCp;
       })
-      .map((c: any) => {
-        const isIcpc = ICPC_REGEX.test(c.name || "");
-        return {
-          id: `cf-${c.id}`,
-          platform: isIcpc ? "ICPC" : "Codeforces",
-          title: c.name,
-          startMs: c.startTimeSeconds * 1000,
-          durationMs: c.durationSeconds * 1000,
-          url: `https://codeforces.com/contest/${c.id}`,
-        };
-      });
+      .map((c: any) => ({
+        id: `cf-${c.id}`,
+        platform: "Codeforces" as const,
+        title: c.name,
+        startMs: c.startTimeSeconds * 1000,
+        durationMs: c.durationSeconds * 1000,
+        url: `https://codeforces.com/contest/${c.id}`,
+      }));
   } catch (e) {
     console.error("Codeforces fetch error:", e);
     return [];
@@ -223,11 +224,10 @@ async function fetchHackerRank(): Promise<Contest[]> {
         const startMs = (c.epoch_starttime || new Date(c.get_starttimeiso).getTime() / 1000) * 1000;
         const endMs = (c.epoch_endtime || new Date(c.get_endtimeiso).getTime() / 1000) * 1000;
         const durationMs = (!isNaN(endMs) && endMs > startMs) ? (endMs - startMs) : 7200000;
-        const isIcpc = ICPC_REGEX.test(c.name || "");
 
         return {
           id: `hr-${c.slug || c.id}`,
-          platform: isIcpc ? "ICPC" : "HackerRank",
+          platform: "HackerRank" as const,
           title: c.name,
           startMs,
           durationMs,
@@ -266,11 +266,10 @@ async function fetchHackerEarth(): Promise<Contest[]> {
         const startMs = new Date(c.start_utc_tz || c.start_timestamp || c.start_time).getTime();
         const endMs = new Date(c.end_utc_tz || c.end_timestamp || c.end_time).getTime();
         const durationMs = (!isNaN(endMs) && endMs > startMs) ? (endMs - startMs) : 7200000;
-        const isIcpc = ICPC_REGEX.test(c.title || c.name || "");
 
         return {
           id: `he-${c.id || c.title}`,
-          platform: isIcpc ? "ICPC" : "HackerEarth",
+          platform: "HackerEarth" as const,
           title: c.title || c.name,
           startMs,
           durationMs,
