@@ -36,12 +36,24 @@ interface StoredData {
   cachedContests: Contest[];
 }
 
-const LOCAL_STORAGE_KEY_CONTESTS = "ldt_cached_contests_v3";
-const LOCAL_STORAGE_KEY_MARKS = "ldt_cached_marks_v3";
+const LOCAL_STORAGE_KEY_CONTESTS = "ldt_cached_contests_v4";
+const LOCAL_STORAGE_KEY_MARKS_PREFIX = "ldt_cached_marks_v4";
 
-// Codeforces should only surface real DSA / competitive-programming rounds —
-// exclude training camps, onsite practice sessions, and other non-CP listings
-// that occasionally show up in the public contest list.
+// Clean up legacy global local storage keys to clear old cross-user attendance leaks
+if (typeof window !== "undefined") {
+  try {
+    localStorage.removeItem("ldt_cached_marks_v3");
+    localStorage.removeItem("ldt_cached_contests_v3");
+    localStorage.removeItem("ldt_cached_marks_v2");
+    localStorage.removeItem("ldt_cached_contests_v2");
+  } catch {
+    // ignore
+  }
+}
+
+// Codeforces should only surface real DSA / competitive-programming rounds matching the 5 allowed divisions:
+// Div. 4, Div. 3, Educational Codeforces Round, Div. 2, Div. 1
+const CF_ALLOWED_REGEX = /div\.\s*[1-4]|div\s*[1-4]|educational/i;
 const CF_NON_CP_REGEX = /training|marathon|onsite|hiring\s*test|welcome\s*round/i;
 
 // ─── Platform fetchers ────────────────────────────────────────────────────────
@@ -60,8 +72,10 @@ async function fetchCodeforces(): Promise<Contest[]> {
       .filter((c: any) => {
         const startMs = c.startTimeSeconds * 1000;
         const inWindow = c.phase !== "FINISHED" || (now - startMs < windowMs);
-        const isCoreCp = !CF_NON_CP_REGEX.test(c.name || "");
-        return inWindow && isCoreCp;
+        const name = c.name || "";
+        const isCoreCp = !CF_NON_CP_REGEX.test(name);
+        const isAllowedDiv = CF_ALLOWED_REGEX.test(name);
+        return inWindow && isCoreCp && isAllowedDiv;
       })
       .map((c: any) => ({
         id: `cf-${c.id}`,
@@ -361,11 +375,15 @@ async function saveStored(uid: string, data: Partial<StoredData>) {
   }
 }
 
-function getLocalData(): { contests: Contest[]; marks: Record<string, UserMark>; lastFetchedMs: number } {
+function getLocalMarksKey(uid?: string): string {
+  return uid ? `${LOCAL_STORAGE_KEY_MARKS_PREFIX}_${uid}` : `${LOCAL_STORAGE_KEY_MARKS_PREFIX}_guest`;
+}
+
+function getLocalData(uid?: string): { contests: Contest[]; marks: Record<string, UserMark>; lastFetchedMs: number } {
   if (typeof window === "undefined") return { contests: [], marks: {}, lastFetchedMs: 0 };
   try {
     const rawC = localStorage.getItem(LOCAL_STORAGE_KEY_CONTESTS);
-    const rawM = localStorage.getItem(LOCAL_STORAGE_KEY_MARKS);
+    const rawM = localStorage.getItem(getLocalMarksKey(uid));
     const contests = rawC ? JSON.parse(rawC) : [];
     const marks = rawM ? JSON.parse(rawM) : {};
     const lastFetchedMs = parseInt(localStorage.getItem(`${LOCAL_STORAGE_KEY_CONTESTS}_ts`) || "0", 10);
@@ -375,13 +393,13 @@ function getLocalData(): { contests: Contest[]; marks: Record<string, UserMark>;
   }
 }
 
-function setLocalData(contests: Contest[], marks: Record<string, UserMark>, ts?: number) {
+function setLocalData(contests: Contest[], marks: Record<string, UserMark>, uid?: string, ts?: number) {
   if (typeof window === "undefined") return;
   try {
     if (contests.length > 0) {
       localStorage.setItem(LOCAL_STORAGE_KEY_CONTESTS, JSON.stringify(contests));
     }
-    localStorage.setItem(LOCAL_STORAGE_KEY_MARKS, JSON.stringify(marks));
+    localStorage.setItem(getLocalMarksKey(uid), JSON.stringify(marks));
     if (ts) {
       localStorage.setItem(`${LOCAL_STORAGE_KEY_CONTESTS}_ts`, String(ts));
     }
@@ -425,8 +443,8 @@ export function useContests() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
-    // Fast initial load from localStorage
-    const local = getLocalData();
+    // Fast initial load from user-scoped localStorage
+    const local = getLocalData(user?.uid);
     if (local.contests.length > 0) {
       setContests(local.contests);
       setMarks(local.marks);
@@ -437,14 +455,18 @@ export function useContests() {
       setError(null);
 
       try {
-        let marksData = local.marks;
+        let marksData: Record<string, UserMark> = {};
         let stored: StoredData | null = null;
 
         if (user) {
           stored = await loadStored(user.uid);
           if (stored?.marks) {
-            marksData = { ...marksData, ...stored.marks };
+            marksData = stored.marks;
+          } else {
+            marksData = local.marks;
           }
+        } else {
+          marksData = local.marks;
         }
 
         setMarks(marksData);
@@ -461,7 +483,7 @@ export function useContests() {
         const fresh = await fetchAllContests();
         if (fresh.length > 0) {
           setContests(fresh);
-          setLocalData(fresh, marksData, nowMs);
+          setLocalData(fresh, marksData, user?.uid, nowMs);
           if (user) {
             await saveStored(user.uid, {
               cachedContests: fresh,
@@ -488,14 +510,14 @@ export function useContests() {
       const fresh = await fetchAllContests();
       if (fresh.length > 0) {
         setContests(fresh);
-        setLocalData(fresh, marks, Date.now());
+        setLocalData(fresh, marks, user?.uid, Date.now());
       }
     } catch {
       setError("Failed to refresh contests.");
     } finally {
       setLoading(false);
     }
-  }, [marks]);
+  }, [marks, user]);
 
   // Mark a contest as attended or missed-intentional
   const markContest = useCallback(
@@ -505,7 +527,7 @@ export function useContests() {
         
         // Defer side effects to next tick so they don't run during React's render phase
         setTimeout(() => {
-          setLocalData(contests, next);
+          setLocalData(contests, next, user?.uid);
           if (user) {
             saveStored(user.uid, { marks: next });
           }
