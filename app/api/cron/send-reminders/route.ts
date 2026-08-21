@@ -129,7 +129,7 @@ export async function GET(req: Request) {
 
   // ── 1. Evening "problems left" reminder (once/day, at reminderTime) ──────
   const eveningDue = candidates.filter((row) => {
-    const tz = row.timezone || "UTC";
+    const tz = row.timezone || "Asia/Kolkata";
     const today = todayIsoInTz(tz);
     if (row.lastReminderSentOn === today) return false;
     const [h, m] = String(row.reminderTime ?? "19:00").split(":").map(Number);
@@ -139,7 +139,7 @@ export async function GET(req: Request) {
   for (const row of eveningDue) {
     const uid = row.uid;
     try {
-      const tz = row.timezone || "UTC";
+      const tz = row.timezone || "Asia/Kolkata";
       const today = todayIsoInTz(tz);
       const settingsRef = db.doc(`users/${uid}/settings/prefs`);
 
@@ -186,7 +186,7 @@ export async function GET(req: Request) {
   // ── 2. Morning reminder (once/day, at morningReminderTime) ───────────────
   const morningDue = candidates.filter((row) => {
     if (!row.morningReminderEnabled) return false;
-    const tz = row.timezone || "UTC";
+    const tz = row.timezone || "Asia/Kolkata";
     const today = todayIsoInTz(tz);
     if (row.lastMorningReminderSentOn === today) return false;
     const [h, m] = String(row.morningReminderTime ?? "08:00").split(":").map(Number);
@@ -196,7 +196,7 @@ export async function GET(req: Request) {
   for (const row of morningDue) {
     const uid = row.uid;
     try {
-      const tz = row.timezone || "UTC";
+      const tz = row.timezone || "Asia/Kolkata";
       const today = todayIsoInTz(tz);
       const settingsRef = db.doc(`users/${uid}/settings/prefs`);
 
@@ -300,7 +300,7 @@ export async function GET(req: Request) {
       const userRow = candidates.find((c) => c.uid === uid);
       if (!userRow) continue;
 
-      const tz = userRow.timezone || "UTC";
+      const tz = userRow.timezone || "Asia/Kolkata";
       const today = todayIsoInTz(tz);
       const [h, m] = String(rem.time ?? "09:00").split(":").map(Number);
       const remMinutes = (h || 0) * 60 + (m || 0);
