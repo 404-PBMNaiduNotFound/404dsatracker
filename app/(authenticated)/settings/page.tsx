@@ -216,8 +216,11 @@ export default function SettingsPage() {
     subscribeDevice(userId).then((ok) => {
       if (ok) {
         console.info("[push] FCM background subscription active.");
+      } else {
+        toast.info("Tip for closed-app notifications", {
+          description: "In-tab notifications are active! For reliable alerts when the app is completely closed, enable Email Notifications below.",
+        });
       }
-      // Failure is fine — local notifications already work.
     }).catch(() => { /* silent */ });
   }
 

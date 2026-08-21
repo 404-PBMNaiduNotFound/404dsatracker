@@ -68,7 +68,7 @@ const PLATFORMS: Platform[] = [
 const SHEET_FILTERS: SheetFilter[] = [
   "All",
   "Core 404",
-  "DSA 500 Practice",
+  "Practice 404 Sheet",
 ];
 
 const STATUS_FILTERS: StatusFilter[] = [
@@ -147,7 +147,7 @@ const DIFF_META: Record<string, { label: string; color: string; bg: string }> = 
 const SHEET_META: Record<SheetFilter, { color: string; bg: string }> = {
   "All": { color: "text-foreground", bg: "bg-secondary" },
   "Core 404": { color: "text-primary", bg: "bg-primary/10" },
-  "DSA 500 Practice": { color: "text-[#00B8A3]", bg: "bg-[#00B8A3]/10" },
+  "Practice 404 Sheet": { color: "text-[#00B8A3]", bg: "bg-[#00B8A3]/10" },
 };
 
 // ─── Unified flat problem type ───────────────────────────────────────────────

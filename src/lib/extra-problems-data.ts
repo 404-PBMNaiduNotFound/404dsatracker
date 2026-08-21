@@ -10,7 +10,7 @@
 import type { Difficulty } from "./types";
 import { PRACTICE_PROBLEMS } from "./practice-problems";
 
-export type Sheet = "DSA 500 Practice";
+export type Sheet = "Practice 404 Sheet";
 
 export interface ExtraProblem {
   name: string;
@@ -33,6 +33,6 @@ export const EXTRA_PROBLEMS: ExtraProblem[] = PRACTICE_PROBLEMS.map((p) => ({
   difficulty: p.difficulty,
   platform: canonicalPlatform(p.platform),
   link: p.link,
-  sheet: "DSA 500 Practice" as Sheet,
+  sheet: "Practice 404 Sheet" as Sheet,
   topic: p.topic,
 }));

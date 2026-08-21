@@ -267,61 +267,8 @@ export function DeveloperProfilePage() {
     }
   }, [user, usernameDraft, username]);
 
-  const handleRemovePhoto = useCallback(async () => {
-    if (!user?.uid) return;
-    try {
-      setPhotoURL("");
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(`local_avatar_url_${user.uid}`);
-        localStorage.removeItem(`dsa_avatar_${user.uid}`);
-      }
-      await saveUserProfile(user.uid, { photoURL: "" });
-      toast.success("Profile photo removed!");
-    } catch (err) {
-      toast.error("Failed to remove profile photo");
-    }
-  }, [user]);
-
-  const handleRemoveBanner = useCallback(async () => {
-    if (!user?.uid) return;
-    try {
-      setBannerURL("");
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(`local_banner_url_${user.uid}`);
-      }
-      await saveUserProfile(user.uid, { bannerURL: "" });
-      toast.success("Cover banner removed!");
-    } catch (err) {
-      toast.error("Failed to remove cover banner");
-    }
-  }, [user]);
-
-  const handleRemoveProfile = useCallback(async () => {
-    if (!user?.uid) return;
-    try {
-      setPhotoURL("");
-      setBannerURL("");
-      setBio("");
-      setDisplayName("");
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(`local_avatar_url_${user.uid}`);
-        localStorage.removeItem(`local_banner_url_${user.uid}`);
-        localStorage.removeItem(`dsa_avatar_${user.uid}`);
-      }
-      await saveUserProfile(user.uid, {
-        photoURL: "",
-        bannerURL: "",
-        bio: "",
-        displayName: "",
-      });
-      toast.success("Profile details & images removed successfully!");
-    } catch (err) {
-      toast.error("Failed to remove profile details", { description: (err as Error).message });
-    }
-  }, [user]);
-
   // — Computed stats
-  const streakCount = useMemo(() => currentStreak(days, submissions), [days, submissions]);
+  const streakCount = useMemo(() => currentStreak(days), [days]);
   const badges = useMemo(() => computeBadges(days), [days]);
 
   const completedProblems = useMemo<CompletedProblemSnapshot[]>(() => {
@@ -552,27 +499,13 @@ export function DeveloperProfilePage() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2 pb-1 w-full sm:w-auto">
+          <div className="flex items-center gap-2 pb-1 w-full sm:w-auto">
             <ThemedTooltip hint="Copy shareable public profile link">
               <Button variant="outline" size="sm" className="h-8 text-xs px-3 gap-1.5 rounded-xl border-white/10 w-full sm:w-auto" onClick={copyShareLink}>
                 {copied ? <Check className="size-3.5 text-emerald-400" /> : <Share2 className="size-3.5 text-primary" />}
                 <span>{copied ? "Copied!" : "Share Profile"}</span>
               </Button>
             </ThemedTooltip>
-
-            {(photoURL || bannerURL || displayName || bio) && (
-              <ThemedTooltip hint="Reset custom photo, cover banner, and profile details">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs px-3 gap-1.5 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50 transition-colors w-full sm:w-auto"
-                  onClick={handleRemoveProfile}
-                >
-                  <Trash2 className="size-3.5" />
-                  <span>Remove Profile</span>
-                </Button>
-              </ThemedTooltip>
-            )}
           </div>
         </div>
       </section>
@@ -594,21 +527,9 @@ export function DeveloperProfilePage() {
               <div className="size-12 overflow-hidden rounded-full border border-primary/40 bg-muted shrink-0 flex items-center justify-center">
                 {photoURL ? <img src={photoURL} alt="avatar" className="size-full object-cover" /> : <span className="font-bold text-primary">{initials}</span>}
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-                  {uploadingAvatar ? "Uploading…" : "Upload Photo"}
-                </Button>
-                {photoURL && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/20"
-                    onClick={handleRemovePhoto}
-                  >
-                    <Trash2 className="size-3.5 mr-1" /> Remove
-                  </Button>
-                )}
-              </div>
+              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+                {uploadingAvatar ? "Uploading…" : "Upload Photo"}
+              </Button>
             </div>
           </div>
 
@@ -622,21 +543,9 @@ export function DeveloperProfilePage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-purple-600/30" />
                 {bannerURL && <img src={bannerURL} alt="banner" className="absolute inset-0 w-full h-full object-cover" />}
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => bannerInputRef.current?.click()} disabled={uploadingBanner}>
-                  {uploadingBanner ? "Uploading…" : "Upload Banner"}
-                </Button>
-                {bannerURL && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs rounded-xl text-destructive hover:bg-destructive/10 border-destructive/20"
-                    onClick={handleRemoveBanner}
-                  >
-                    <Trash2 className="size-3.5 mr-1" /> Remove
-                  </Button>
-                )}
-              </div>
+              <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => bannerInputRef.current?.click()} disabled={uploadingBanner}>
+                {uploadingBanner ? "Uploading…" : "Upload Banner"}
+              </Button>
             </div>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { SECTIONS } from "@/lib/a2z-data";
 import { EXTRA_PROBLEMS, type Sheet } from "@/lib/extra-problems-data";
@@ -15,7 +16,9 @@ import {
 import { ExternalLink, Search, X, ArrowUpDown, Filter, ChevronLeft, ChevronRight, Sparkles, Link2, Video, ChevronDown, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Difficulty } from "@/lib/types";
+import { useProblemCompletions } from "@/hooks/useProblemCompletions";
 import { getChatGPTAiPromptUrl } from "@/lib/aiTutorPrompt";
+import { CodeModal } from "@/components/CodeModal";
 import type { CodeSubmission } from "@/lib/db";
 
 function googleSearchUrl(problemName: string) {
@@ -74,7 +77,7 @@ const PLATFORMS: Platform[] = [
 const SHEET_FILTERS: SheetFilter[] = [
   "All",
   "Core 404",
-  "DSA 500 Practice",
+  "Practice 404 Sheet",
 ];
 
 const STATUS_FILTERS: StatusFilter[] = [
@@ -124,7 +127,7 @@ export const Route = createFileRoute("/_authenticated/problems")({
       { title: "Problems — DSA⁴⁰⁴" },
       {
         name: "description",
-        content: "Browse 838+ verified problems from the Core 404 roadmap and the DSA 500 practice set.",
+        content: "Browse 924+ verified problems from the Core 404 roadmap and the Practice 404 Sheet.",
       },
     ],
   }),
@@ -188,7 +191,7 @@ const DIFF_META: Record<string, { label: string; color: string; bg: string }> = 
 const SHEET_META: Record<SheetFilter, { color: string; bg: string }> = {
   "All": { color: "text-foreground", bg: "bg-secondary" },
   "Core 404": { color: "text-primary", bg: "bg-primary/10" },
-  "DSA 500 Practice": { color: "text-[#00B8A3]", bg: "bg-[#00B8A3]/10" },
+  "Practice 404 Sheet": { color: "text-[#00B8A3]", bg: "bg-[#00B8A3]/10" },
 };
 
 // ─── Unified flat problem type ───────────────────────────────────────────────
@@ -398,19 +401,59 @@ function ProblemItem({
                 <span>Google Search Solution</span>
               </a>
             </DropdownMenuItem>
+            {hasSubmission && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setCodeModalOpen(true)} className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
+                  <Code2 className="size-3.5 text-emerald-400" />
+                  <span>View Submitted Code</span>
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Solve Button in 404 Editor */}
+        {/* Solve Button */}
         <a
-          href={`/editor?name=${encodeURIComponent(problem.name)}&difficulty=${encodeURIComponent(problem.difficulty)}&topic=${encodeURIComponent(problem.topic || "")}&sheet=Core+404&platform=${encodeURIComponent(problem.platform)}&link=${encodeURIComponent(problem.link || "")}`}
+          href={getChatGPTAiPromptUrl(problem.name)}
+          target="_blank"
+          rel="noreferrer"
           className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
-          title="Solve in 404 Editor"
+          title="Solve with Interactive ChatGPT DSA AI Tutor"
         >
-          <Code2 className="size-3 text-emerald-400" />
+          <Sparkles className="size-3 text-emerald-400" />
           Solve
         </a>
+
+        {/* Code Button */}
+        <button
+          onClick={() => setCodeModalOpen(true)}
+          className={cn(
+            "flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors",
+            hasSubmission
+              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25"
+              : "border border-border text-muted-foreground hover:border-primary hover:text-primary",
+          )}
+        >
+          <Code2 className="size-3" />
+          <span>{hasSubmission ? "Code" : "Add Code"}</span>
+        </button>
       </div>
+
+      <CodeModal
+        open={codeModalOpen}
+        onOpenChange={setCodeModalOpen}
+        problemName={problem.name}
+        existingSubmission={submission}
+        onSave={async (code, link) => {
+          if (submitCode) {
+            await submitCode(problem.name, code, link);
+          }
+          if (!done && !readOnly) {
+            onToggle();
+          }
+        }}
+      />
     </li>
   );
 }

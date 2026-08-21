@@ -9,8 +9,6 @@ import { auth } from "@/integrations/firebase/client";
 import { usePlan } from "@/hooks/usePlan";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
-import { useProblemCompletions } from "@/hooks/useProblemCompletions";
-import { loadUserProfile } from "@/lib/db";
 import { currentStreak } from "@/lib/gamification";
 import { formatDate } from "@/lib/plan";
 import { Button } from "@/components/ui/button";
@@ -228,7 +226,7 @@ function DesktopSidebar({
             <DropdownMenuContent side="right" align="end" className="w-56">
               <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/progress"><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -369,7 +367,7 @@ function MobileDrawer({
             <DropdownMenuContent side="right" align="end" className="w-56">
               <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/progress" onClick={onClose}><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/profile" onClick={onClose}><UserCircle2 className="mr-2 size-4" /> Profile</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/settings" onClick={onClose}><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -396,21 +394,9 @@ export function AppShell({ email, children }: { email: string; children: React.R
   const router = useRouter();
   const pathname = usePathname();
   const qc = useQueryClient();
-  const { submissions } = useProblemCompletions();
-  const streak = currentStreak(days, submissions);
+  const streak = currentStreak(days);
 
-  const [profileData, setProfileData] = useState<{ displayName?: string; username?: string } | null>(null);
-
-  useEffect(() => {
-    if (user?.uid) {
-      loadUserProfile(user.uid).then((p) => {
-        if (p) setProfileData({ displayName: p.displayName, username: p.username });
-      }).catch(() => {});
-    }
-  }, [user?.uid]);
-
-  const usernameDisplay = profileData?.username || profileData?.displayName || user?.displayName || email?.split("@")[0] || "Developer";
-  const displayName = usernameDisplay;
+  const displayName = user?.displayName || email?.split("@")[0] || "Developer";
   const initials = displayName[0]?.toUpperCase() ?? "?";
   const photoURL = user?.photoURL;
 
@@ -530,7 +516,7 @@ export function AppShell({ email, children }: { email: string; children: React.R
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/progress"><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => openPanel()}><Palette className="mr-2 size-4" /> Customize Color & Font</DropdownMenuItem>
@@ -594,7 +580,7 @@ export function AppShell({ email, children }: { email: string; children: React.R
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/progress"><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
                   <DropdownMenuSeparator />

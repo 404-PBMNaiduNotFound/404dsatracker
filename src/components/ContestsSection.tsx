@@ -81,70 +81,6 @@ export function isToday(ms: number): boolean {
   }
 }
 
-// ─── Codeforces Division Helper ────────────────────────────────────────────────
-
-export interface CFDivisionDetails {
-  badge: string;
-  label: string;
-  icon: string;
-  audience: string;
-  difficulty: string;
-  bgStyle: string;
-}
-
-export const CF_DIVISIONS: CFDivisionDetails[] = [
-  {
-    badge: "Div. 4",
-    label: "Div. 4",
-    icon: "🟢",
-    audience: "Absolute beginners, DSA fundamentals",
-    difficulty: "Easy",
-    bgStyle: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  },
-  {
-    badge: "Div. 3",
-    label: "Div. 3",
-    icon: "🟢",
-    audience: "Students building CP skills",
-    difficulty: "Easy → Medium",
-    bgStyle: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  },
-  {
-    badge: "Educational",
-    label: "Educational Codeforces Round",
-    icon: "🟡",
-    audience: "Learning algorithms/patterns",
-    difficulty: "Medium → Hard",
-    bgStyle: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
-  },
-  {
-    badge: "Div. 2",
-    label: "Div. 2",
-    icon: "🟡",
-    audience: "Serious CP practice",
-    difficulty: "Medium → Hard",
-    bgStyle: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
-  },
-  {
-    badge: "Div. 1",
-    label: "Div. 1",
-    icon: "🔴",
-    audience: "Advanced CP practice",
-    difficulty: "Hard",
-    bgStyle: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30",
-  },
-];
-
-export function getCFDivision(title: string): CFDivisionDetails | null {
-  const t = title.toLowerCase();
-  if (t.includes("div. 4") || t.includes("div 4")) return CF_DIVISIONS[0];
-  if (t.includes("div. 3") || t.includes("div 3")) return CF_DIVISIONS[1];
-  if (t.includes("educational")) return CF_DIVISIONS[2];
-  if (t.includes("div. 2") || t.includes("div 2")) return CF_DIVISIONS[3];
-  if (t.includes("div. 1") || t.includes("div 1")) return CF_DIVISIONS[4];
-  return null;
-}
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const PLATFORM_STYLES: Record<string, string> = {
@@ -206,9 +142,12 @@ function MarkBar({
   status: ContestWithStatus["status"];
   onMark: (id: string, m: UserMark) => void;
 }) {
+  // Only show mark bar for live or missed (after end)
+  if (status === "upcoming") return null;
+
   if (mark === "attended") {
     return (
-      <div className="mt-2 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-2 flex items-center justify-between gap-2">
         <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="size-3" />
           Attended ✓
@@ -216,7 +155,6 @@ function MarkBar({
         <button
           onClick={(e) => {
             e.preventDefault();
-            e.stopPropagation();
             onMark(contestId, null);
           }}
           className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -229,7 +167,7 @@ function MarkBar({
 
   if (mark === "missed_intentional") {
     return (
-      <div className="mt-2 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+      <div className="mt-2 flex items-center justify-between gap-2">
         <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-gray-500">
           <XCircle className="size-3" />
           Marked missed
@@ -237,7 +175,6 @@ function MarkBar({
         <button
           onClick={(e) => {
             e.preventDefault();
-            e.stopPropagation();
             onMark(contestId, null);
           }}
           className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -251,16 +188,12 @@ function MarkBar({
   return (
     <div
       className="mt-2 flex items-center gap-2"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
+      onClick={(e) => e.preventDefault()}
     >
       <span className="text-[11px] text-muted-foreground">Did you attend?</span>
       <button
         onClick={(e) => {
           e.preventDefault();
-          e.stopPropagation();
           onMark(contestId, "attended");
         }}
         className="flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-800/60"
@@ -271,7 +204,6 @@ function MarkBar({
       <button
         onClick={(e) => {
           e.preventDefault();
-          e.stopPropagation();
           onMark(contestId, "missed_intentional");
         }}
         className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-800/60 dark:text-gray-400 dark:hover:bg-gray-700/60"
@@ -348,22 +280,6 @@ function ContestCard({
         </span>
       </div>
 
-      {/* Codeforces division info */}
-      {c.platform === "Codeforces" && (() => {
-        const div = getCFDivision(c.title);
-        if (!div) return null;
-        return (
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="font-semibold text-foreground">{div.icon} {div.badge}</span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground font-medium">{div.audience}</span>
-            <span className="ml-auto rounded bg-muted/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-foreground">
-              {div.difficulty}
-            </span>
-          </div>
-        );
-      })()}
-
       {/* Live countdown */}
       {c.status === "live" && (
         <Countdown targetMs={c.endMs} label="Ends in" now={now} />
@@ -404,26 +320,23 @@ function SectionHeader({
   title,
   count,
   icon,
-  badge,
   onRefresh,
   isRefreshing,
 }: {
   title: string;
   count: number;
   icon?: React.ReactNode;
-  badge?: React.ReactNode;
   onRefresh?: () => void;
   isRefreshing?: boolean;
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+    <div className="mb-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
         {icon ?? <Trophy className="size-4 text-primary" />}
         <h2 className="text-base font-semibold">{title}</h2>
         <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
           {count}
         </span>
-        {badge}
       </div>
       {onRefresh && (
         <button
@@ -443,26 +356,24 @@ function SectionHeader({
 // ─── Progress section ─────────────────────────────────────────────────────────
 
 export function ContestProgress({ contests }: { contests: ContestWithStatus[] }) {
-  const attended = contests.filter((c) => c.mark === "attended");
-  const missedMark = contests.filter((c) => c.mark === "missed_intentional");
   const allEnded = contests.filter((c) => c.status === "missed");
+  const attended = allEnded.filter((c) => c.mark === "attended");
+  const missedMark = allEnded.filter((c) => c.mark === "missed_intentional");
   const unmarked = allEnded.filter((c) => c.mark === null);
-  const total = Math.max(allEnded.length, attended.length + missedMark.length);
+  const total = allEnded.length;
   const pct = total === 0 ? 0 : Math.round((attended.length / total) * 100);
 
   // Platform breakdown
   const platforms = ["Codeforces", "CodeChef", "LeetCode", "HackerRank", "HackerEarth"] as const;
   const platformStats = platforms.map((p) => {
-    const pContests = contests.filter((c) => c.platform === p);
-    const pEnded = pContests.filter((c) => c.status === "missed");
-    const pAttended = pContests.filter((c) => c.mark === "attended");
-    const pTotal = Math.max(pEnded.length, pAttended.length);
+    const pEnded = allEnded.filter((c) => c.platform === p);
+    const pAttended = pEnded.filter((c) => c.mark === "attended");
     return {
       platform: p,
-      total: pTotal,
+      total: pEnded.length,
       attended: pAttended.length,
     };
-  }).filter((s) => s.total > 0 || s.attended > 0);
+  }).filter((s) => s.total > 0);
 
   if (total === 0) return null;
 
@@ -628,28 +539,12 @@ export function TodayContestsSection() {
     );
   }
 
-  const todaysAttended = todaysContests.filter((c) => c.mark === "attended").length;
-  const totalAttended = contests.filter((c) => c.mark === "attended").length;
-
   return (
     <section className="mt-6">
       <SectionHeader
         title="Today's Contests"
         count={todaysContests.length}
         icon={<Zap className="size-4 text-yellow-500" />}
-        badge={
-          <span
-            className={cn(
-              "ml-1 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all",
-              todaysAttended > 0
-                ? "border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            <CheckCircle2 className="size-3" />
-            {todaysAttended} / {todaysContests.length} Attended ({totalAttended} Total)
-          </span>
-        }
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
       />
@@ -750,9 +645,7 @@ export function ContestsPageSection() {
   const markedMissed = missed.filter(
     (c) => c.mark === "missed_intentional" && (now - c.endMs <= THREE_DAYS_MS)
   );
-  const allAttended = contests
-    .filter((c) => c.mark === "attended")
-    .sort((a, b) => b.startMs - a.startMs);
+  const attendedMissed = missed.filter((c) => c.mark === "attended");
 
   return (
     <div className="space-y-10">
@@ -793,15 +686,15 @@ export function ContestsPageSection() {
       )}
 
       {/* Attended (marked) */}
-      {allAttended.length > 0 && (
+      {attendedMissed.length > 0 && (
         <section>
           <SectionHeader
             title="Attended Contests"
-            count={allAttended.length}
+            count={attendedMissed.length}
             icon={<CheckCircle2 className="size-4 text-emerald-500" />}
           />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {allAttended.map((c) => (
+            {attendedMissed.map((c) => (
               <ContestCard key={c.id} c={c} now={now} onMark={markContest} />
             ))}
           </div>

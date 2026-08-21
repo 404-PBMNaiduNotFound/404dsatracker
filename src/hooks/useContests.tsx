@@ -36,24 +36,12 @@ interface StoredData {
   cachedContests: Contest[];
 }
 
-const LOCAL_STORAGE_KEY_CONTESTS = "ldt_cached_contests_v4";
-const LOCAL_STORAGE_KEY_MARKS_PREFIX = "ldt_cached_marks_v4";
+const LOCAL_STORAGE_KEY_CONTESTS = "ldt_cached_contests_v3";
+const LOCAL_STORAGE_KEY_MARKS = "ldt_cached_marks_v3";
 
-// Clean up legacy global local storage keys to clear old cross-user attendance leaks
-if (typeof window !== "undefined") {
-  try {
-    localStorage.removeItem("ldt_cached_marks_v3");
-    localStorage.removeItem("ldt_cached_contests_v3");
-    localStorage.removeItem("ldt_cached_marks_v2");
-    localStorage.removeItem("ldt_cached_contests_v2");
-  } catch {
-    // ignore
-  }
-}
-
-// Codeforces should only surface real DSA / competitive-programming rounds matching the 5 allowed divisions:
-// Div. 4, Div. 3, Educational Codeforces Round, Div. 2, Div. 1
-const CF_ALLOWED_REGEX = /div\.\s*[1-4]|div\s*[1-4]|educational/i;
+// Codeforces should only surface real DSA / competitive-programming rounds —
+// exclude training camps, onsite practice sessions, and other non-CP listings
+// that occasionally show up in the public contest list.
 const CF_NON_CP_REGEX = /training|marathon|onsite|hiring\s*test|welcome\s*round/i;
 
 // ─── Platform fetchers ────────────────────────────────────────────────────────
@@ -72,10 +60,8 @@ async function fetchCodeforces(): Promise<Contest[]> {
       .filter((c: any) => {
         const startMs = c.startTimeSeconds * 1000;
         const inWindow = c.phase !== "FINISHED" || (now - startMs < windowMs);
-        const name = c.name || "";
-        const isCoreCp = !CF_NON_CP_REGEX.test(name);
-        const isAllowedDiv = CF_ALLOWED_REGEX.test(name);
-        return inWindow && isCoreCp && isAllowedDiv;
+        const isCoreCp = !CF_NON_CP_REGEX.test(c.name || "");
+        return inWindow && isCoreCp;
       })
       .map((c: any) => ({
         id: `cf-${c.id}`,
@@ -354,50 +340,32 @@ export function getContestStatus(c: Contest, now: number): ContestStatus {
 // ─── Firestore & LocalStorage helpers ─────────────────────────────────────────
 
 function storeDoc(uid: string) {
-  return doc(db!, "users", uid, "meta", "contestTracking");
-}
-
-function legacyStoreDoc(uid: string) {
   return doc(db!, "users", uid, "contestMeta", "tracking");
 }
 
 async function loadStored(uid: string): Promise<StoredData | null> {
   try {
-    let snap = await getDoc(storeDoc(uid));
-    if (!snap.exists()) {
-      snap = await getDoc(legacyStoreDoc(uid));
-    }
+    const snap = await getDoc(storeDoc(uid));
     if (!snap.exists()) return null;
     return snap.data() as StoredData;
-  } catch (e) {
-    console.warn("Failed to load contest tracking from DB:", e);
+  } catch {
     return null;
   }
 }
 
 async function saveStored(uid: string, data: Partial<StoredData>) {
   try {
-    const payload = { ...data, updatedAt: serverTimestamp() };
-    await setDoc(storeDoc(uid), payload, { merge: true });
-    try {
-      await setDoc(legacyStoreDoc(uid), payload, { merge: true });
-    } catch {
-      // ignore legacy fallback write failure
-    }
-  } catch (e) {
-    console.error("Failed to save contest tracking to DB:", e);
+    await setDoc(storeDoc(uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  } catch {
+    // non-critical
   }
 }
 
-function getLocalMarksKey(uid?: string): string {
-  return uid ? `${LOCAL_STORAGE_KEY_MARKS_PREFIX}_${uid}` : `${LOCAL_STORAGE_KEY_MARKS_PREFIX}_guest`;
-}
-
-function getLocalData(uid?: string): { contests: Contest[]; marks: Record<string, UserMark>; lastFetchedMs: number } {
+function getLocalData(): { contests: Contest[]; marks: Record<string, UserMark>; lastFetchedMs: number } {
   if (typeof window === "undefined") return { contests: [], marks: {}, lastFetchedMs: 0 };
   try {
     const rawC = localStorage.getItem(LOCAL_STORAGE_KEY_CONTESTS);
-    const rawM = localStorage.getItem(getLocalMarksKey(uid));
+    const rawM = localStorage.getItem(LOCAL_STORAGE_KEY_MARKS);
     const contests = rawC ? JSON.parse(rawC) : [];
     const marks = rawM ? JSON.parse(rawM) : {};
     const lastFetchedMs = parseInt(localStorage.getItem(`${LOCAL_STORAGE_KEY_CONTESTS}_ts`) || "0", 10);
@@ -407,13 +375,13 @@ function getLocalData(uid?: string): { contests: Contest[]; marks: Record<string
   }
 }
 
-function setLocalData(contests: Contest[], marks: Record<string, UserMark>, uid?: string, ts?: number) {
+function setLocalData(contests: Contest[], marks: Record<string, UserMark>, ts?: number) {
   if (typeof window === "undefined") return;
   try {
     if (contests.length > 0) {
       localStorage.setItem(LOCAL_STORAGE_KEY_CONTESTS, JSON.stringify(contests));
     }
-    localStorage.setItem(getLocalMarksKey(uid), JSON.stringify(marks));
+    localStorage.setItem(LOCAL_STORAGE_KEY_MARKS, JSON.stringify(marks));
     if (ts) {
       localStorage.setItem(`${LOCAL_STORAGE_KEY_CONTESTS}_ts`, String(ts));
     }
@@ -432,16 +400,6 @@ export function useContests() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const fetchedRef = useRef(false);
-  const userRef = useRef(user);
-  const contestsRef = useRef(contests);
-
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-
-  useEffect(() => {
-    contestsRef.current = contests;
-  }, [contests]);
 
   // Tick every second for live countdowns
   useEffect(() => {
@@ -462,17 +420,16 @@ export function useContests() {
     };
   }, []);
 
-  const hydratedUidRef = useRef<string | null | undefined>(undefined);
-
   // Load from local storage immediately (zero-lag), then hydrate/refresh asynchronously
   useEffect(() => {
-    const currentUid = user?.uid;
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
 
-    // Fast initial load from user-scoped localStorage
-    const local = getLocalData(currentUid);
+    // Fast initial load from localStorage
+    const local = getLocalData();
     if (local.contests.length > 0) {
       setContests(local.contests);
-      setMarks((prev) => ({ ...local.marks, ...prev }));
+      setMarks(local.marks);
       setLoading(false);
     }
 
@@ -480,17 +437,17 @@ export function useContests() {
       setError(null);
 
       try {
-        let marksData: Record<string, UserMark> = local.marks;
+        let marksData = local.marks;
         let stored: StoredData | null = null;
 
         if (user) {
           stored = await loadStored(user.uid);
           if (stored?.marks) {
-            marksData = { ...local.marks, ...stored.marks };
+            marksData = { ...marksData, ...stored.marks };
           }
         }
 
-        setMarks((prev) => ({ ...marksData, ...prev }));
+        setMarks(marksData);
 
         const nowMs = Date.now();
         const cachedList = stored?.cachedContests?.length ? stored.cachedContests : local.contests;
@@ -500,19 +457,17 @@ export function useContests() {
           setLoading(false);
         }
 
-        if (hydratedUidRef.current !== currentUid) {
-          hydratedUidRef.current = currentUid;
-          const fresh = await fetchAllContests();
-          if (fresh.length > 0) {
-            setContests(fresh);
-            setLocalData(fresh, marksData, currentUid, nowMs);
-            if (user) {
-              await saveStored(user.uid, {
-                cachedContests: fresh,
-                lastFetchedMs: nowMs,
-                marks: marksData,
-              });
-            }
+        // Always fetch fresh contests asynchronously to ensure latest contests (CodeChef, CF, LeetCode, etc.)
+        const fresh = await fetchAllContests();
+        if (fresh.length > 0) {
+          setContests(fresh);
+          setLocalData(fresh, marksData, nowMs);
+          if (user) {
+            await saveStored(user.uid, {
+              cachedContests: fresh,
+              lastFetchedMs: nowMs,
+              marks: marksData,
+            });
           }
         }
         setLoading(false);
@@ -533,14 +488,14 @@ export function useContests() {
       const fresh = await fetchAllContests();
       if (fresh.length > 0) {
         setContests(fresh);
-        setLocalData(fresh, marks, user?.uid, Date.now());
+        setLocalData(fresh, marks, Date.now());
       }
     } catch {
       setError("Failed to refresh contests.");
     } finally {
       setLoading(false);
     }
-  }, [marks, user]);
+  }, [marks]);
 
   // Mark a contest as attended or missed-intentional
   const markContest = useCallback(
@@ -550,11 +505,9 @@ export function useContests() {
         
         // Defer side effects to next tick so they don't run during React's render phase
         setTimeout(() => {
-          const currentUid = userRef.current?.uid;
-          const currentContests = contestsRef.current;
-          setLocalData(currentContests, next, currentUid);
-          if (currentUid) {
-            saveStored(currentUid, { marks: next });
+          setLocalData(contests, next);
+          if (user) {
+            saveStored(user.uid, { marks: next });
           }
           // Broadcast custom event so all active components sync instantly
           if (typeof window !== "undefined") {
@@ -569,7 +522,7 @@ export function useContests() {
         return next;
       });
     },
-    []
+    [user, contests]
   );
 
   // Derive final list with statuses

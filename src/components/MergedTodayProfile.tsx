@@ -305,7 +305,7 @@ export function MergedTodayProfile() {
   const inactivityInfo = useMemo(() => getInactivityDays(days, user?.uid), [days, user]);
 
   // Streak — standard derived streak from active plan days
-  const streakCount = useMemo(() => currentStreak(days, submissions), [days, submissions]);
+  const streakCount = useMemo(() => currentStreak(days), [days]);
 
   const userNameDisplay = displayName || user?.displayName || user?.email?.split("@")[0] || "Developer";
 

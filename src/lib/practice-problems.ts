@@ -592,5 +592,26 @@ export const PRACTICE_PROBLEMS: PracticeProblem[] = [
   { id: "ALT-565", name: "Contacts", topic: "HackerRank — Data Structures", pattern: "Trie", difficulty: "Medium", platform: "HackerRank", link: "https://www.hackerrank.com/challenges/contacts/problem" },
   { id: "ALT-566", name: "No Prefix Set", topic: "HackerRank — Data Structures", pattern: "Trie", difficulty: "Hard", platform: "HackerRank", link: "https://www.hackerrank.com/challenges/no-prefix-set/problem" },
 
+  // ── Top 20 Pattern Printing Sheet ──────────────────────────────────────
+  { id: "ALT-567", name: "Solid Square Pattern", topic: "Pattern Printing", pattern: "Nested Loops", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Solid+Square+Pattern" },
+  { id: "ALT-568", name: "Increasing Triangle Pattern", topic: "Pattern Printing", pattern: "Row-Column Relationship", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Increasing+Triangle+Pattern" },
+  { id: "ALT-569", name: "Decreasing Triangle Pattern", topic: "Pattern Printing", pattern: "Reverse Row Logic", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Decreasing+Triangle+Pattern" },
+  { id: "ALT-570", name: "Right-Aligned Triangle Pattern", topic: "Pattern Printing", pattern: "Spaces + Stars", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Right-Aligned+Triangle+Pattern" },
+  { id: "ALT-571", name: "Pyramid Pattern", topic: "Pattern Printing", pattern: "Spaces + Odd Numbers", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Pyramid+Pattern" },
+  { id: "ALT-572", name: "Inverted Pyramid Pattern", topic: "Pattern Printing", pattern: "Reverse Symmetry", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Inverted+Pyramid+Pattern" },
+  { id: "ALT-573", name: "Diamond Pattern", topic: "Pattern Printing", pattern: "Symmetric Halves", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Diamond+Pattern" },
+  { id: "ALT-574", name: "Butterfly Pattern", topic: "Pattern Printing", pattern: "Dual Mirror Halves", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Butterfly+Pattern" },
+  { id: "ALT-575", name: "Floyd's Triangle", topic: "Pattern Printing", pattern: "Running Counter", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Floyds+Triangle" },
+  { id: "ALT-576", name: "0-1 Triangle Pattern", topic: "Pattern Printing", pattern: "Parity / Conditional", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=0-1+Triangle+Pattern" },
+  { id: "ALT-577", name: "Number Triangle Pattern", topic: "Pattern Printing", pattern: "Row-based Value", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Number+Triangle+Pattern" },
+  { id: "ALT-578", name: "Palindromic Number Pyramid", topic: "Pattern Printing", pattern: "Inc/Dec Number Pyramid", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Palindromic+Number+Pyramid" },
+  { id: "ALT-579", name: "Hollow Square Pattern", topic: "Pattern Printing", pattern: "Boundary Conditions", difficulty: "Easy", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Hollow+Square+Pattern" },
+  { id: "ALT-580", name: "Hollow Triangle Pattern", topic: "Pattern Printing", pattern: "Boundary + Diagonal", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Hollow+Triangle+Pattern" },
+  { id: "ALT-581", name: "Hollow Pyramid Pattern", topic: "Pattern Printing", pattern: "Boundary + Symmetry", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Hollow+Pyramid+Pattern" },
+  { id: "ALT-582", name: "Hollow Diamond Pattern", topic: "Pattern Printing", pattern: "Boundary Diamond", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Hollow+Diamond+Pattern" },
+  { id: "ALT-583", name: "X Pattern", topic: "Pattern Printing", pattern: "Diagonal Coordinates", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=X+Pattern" },
+  { id: "ALT-584", name: "Concentric Number Square", topic: "Pattern Printing", pattern: "Distance from Center", difficulty: "Hard", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Concentric+Number+Square" },
+  { id: "ALT-585", name: "Zig-Zag / Wave Pattern", topic: "Pattern Printing", pattern: "Modulus Wave", difficulty: "Medium", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Zig-Zag+Wave+Pattern" },
+  { id: "ALT-586", name: "Spiral Matrix Pattern", topic: "Pattern Printing", pattern: "Direction Changes", difficulty: "Hard", platform: "GeeksforGeeks", link: "https://www.geeksforgeeks.org/explore?search=Spiral+Matrix+Pattern" },
 ];
 

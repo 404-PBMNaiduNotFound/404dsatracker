@@ -26,7 +26,7 @@ import { seedDays, TOTAL_PROBLEMS, BASE_DAYS } from "@/lib/plan";
 const REAL_SECTIONS_COUNT = CORE_SECTIONS.length; // 42
 const REAL_TOTAL_PROBLEMS = TOTAL_PROBLEMS; // 338
 const REAL_TOTAL_DAYS = BASE_DAYS; // 120
-const REAL_ALL_PROBLEMS_COUNT = ALL_PROBLEMS.length; // 904 (338 Core 404 + 566 DSA 500 Practice)
+const REAL_ALL_PROBLEMS_COUNT = ALL_PROBLEMS.length; // 924 (338 Core 404 + 586 Practice 404 Sheet)
 const REAL_AVG_PER_DAY = REAL_TOTAL_PROBLEMS / REAL_TOTAL_DAYS; // ~2.8
 const REAL_DAY_1 = seedDays()[0];
 const REAL_DAY_1_DIFFICULTY_COUNTS = REAL_DAY_1.problems.reduce(
@@ -223,7 +223,7 @@ function StatsBar() {
           ))}
         </div>
         <p className="mt-6 text-center text-xs text-muted-foreground font-mono">
-          The Problems tab goes further — browse all {REAL_ALL_PROBLEMS_COUNT} problems ({REAL_TOTAL_PROBLEMS} Core 404 + {REAL_ALL_PROBLEMS_COUNT - REAL_TOTAL_PROBLEMS} DSA 500 practice) across every topic.
+          The Problems tab goes further — browse all {REAL_ALL_PROBLEMS_COUNT} problems ({REAL_TOTAL_PROBLEMS} Core 404 + {REAL_ALL_PROBLEMS_COUNT - REAL_TOTAL_PROBLEMS} Practice 404 Sheet) across every topic.
         </p>
       </div>
     </div>
@@ -469,7 +469,7 @@ function ProblemsMock() {
         </div>
       ))}
       <div className="rounded-lg border border-border bg-muted p-2 text-[10px] text-muted-foreground">
-        Sheets: Core 404 Roadmap · DSA 500 Practice Set
+        Sheets: Core 404 Roadmap · Practice 404 Sheet
       </div>
     </div>
   );

@@ -6,16 +6,12 @@ import Link from "next/link";
 import {
   loadUserProfile,
   loadPublicDays,
-  loadProblemCompletions,
-  loadCodeSubmissions,
   resolveProfileIdentifier,
   type CodingProfiles,
   type CompletedProblemSnapshot,
   type PublicStats,
-  type CodeSubmission,
 } from "@/lib/db";
-import { ALL_PROBLEMS } from "@/lib/problems";
-import { ExternalLink, Globe, Code2, Flame, Sparkles, BadgeCheck } from "lucide-react";
+import { ExternalLink, Globe, Code2, Flame, Sparkles } from "lucide-react";
 import { SubmissionHeatmap } from "@/components/SubmissionHeatmap";
 import { BadgesGrid } from "@/components/BadgesGrid";
 import { computeBadges, currentStreak } from "@/lib/gamification";
@@ -73,8 +69,6 @@ export default function PublicProfilePage() {
   const [completedProblems, setCompletedProblems] = useState<ExtendedCompletedSnapshot[]>([]);
   const [platformFilter, setPlatformFilter] = useState("All");
   const [days, setDays] = useState<Day[]>([]);
-  const [pbCompleted, setPbCompleted] = useState<Set<string>>(new Set());
-  const [codeSubmissions, setCodeSubmissions] = useState<Record<string, CodeSubmission>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -87,135 +81,46 @@ export default function PublicProfilePage() {
           setNotFound(true);
           return;
         }
-        return Promise.all([
-          loadUserProfile(uid),
-          loadPublicDays(uid),
-          loadProblemCompletions(uid),
-          loadCodeSubmissions(uid),
-        ]).then(([p, loadedDays, completedSet, submissionsMap]) => {
-          if (
-            !p.displayName &&
-            !p.bio &&
-            !p.photoURL &&
-            loadedDays.length === 0 &&
-            completedSet.size === 0 &&
-            Object.keys(submissionsMap).length === 0
-          ) {
-            setNotFound(true);
-            return;
-          }
-          setDisplayName(p.displayName ?? "");
-          setUsername(p.username ?? "");
-          setPhotoURL(p.photoURL ?? "");
-          setBannerURL(p.bannerURL ?? "");
-          setBio(p.bio ?? "");
-          setCodingProfiles(p.codingProfiles ?? {});
-          setPublicStats(p.publicStats ?? { totalSolved: 0, byPlatform: {}, lastUpdated: "" });
-          setCompletedProblems((p.completedProblems as ExtendedCompletedSnapshot[]) ?? []);
-          setDays(loadedDays);
-          setPbCompleted(completedSet);
-          setCodeSubmissions(submissionsMap);
+        return Promise.all([loadUserProfile(uid), loadPublicDays(uid)]).then(([p, loadedDays]) => {
+        if (!p.displayName && !p.bio && !p.photoURL && loadedDays.length === 0) {
+          setNotFound(true);
+          return;
+        }
+        setDisplayName(p.displayName ?? "");
+        setUsername(p.username ?? "");
+        setPhotoURL(p.photoURL ?? "");
+        setBannerURL(p.bannerURL ?? "");
+        setBio(p.bio ?? "");
+        setCodingProfiles(p.codingProfiles ?? {});
+        setPublicStats(
+          p.publicStats ?? { totalSolved: 0, byPlatform: {}, lastUpdated: "" }
+        );
+        setCompletedProblems((p.completedProblems as ExtendedCompletedSnapshot[]) ?? []);
+        setDays(loadedDays);
         });
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [identifier]);
 
-  // Aggregate all completed/solved problems from user profile, schedule days, and Problems tab
-  const allCompletedProblems = useMemo<ExtendedCompletedSnapshot[]>(() => {
-    const seen = new Set<string>();
-    const list: ExtendedCompletedSnapshot[] = [];
-
-    // 1. Explicitly stored in user profile doc
-    for (const cp of completedProblems) {
-      if (cp.name && !seen.has(cp.name)) {
-        seen.add(cp.name);
-        const sub = codeSubmissions[cp.name];
-        list.push({
-          ...cp,
-          code: cp.code || sub?.code,
-          submissionLink: cp.submissionLink || sub?.link,
-        });
-      }
-    }
-
-    // 2. Schedule days
-    for (const day of days) {
-      for (const p of day.problems) {
-        if (p.done && p.name && !seen.has(p.name)) {
-          seen.add(p.name);
-          const sub = codeSubmissions[p.name];
-          list.push({
-            name: p.name,
-            platform: p.platform || "DSA",
-            difficulty: p.difficulty || "Medium",
-            link: p.link || "",
-            code: (p as any).code || sub?.code,
-            submissionLink: sub?.link,
-          });
-        }
-      }
-    }
-
-    // 3. Problems tab completions
-    for (const fp of ALL_PROBLEMS) {
-      if (pbCompleted.has(fp.name) && !seen.has(fp.name)) {
-        seen.add(fp.name);
-        const sub = codeSubmissions[fp.name];
-        list.push({
-          name: fp.name,
-          platform: fp.platform || "DSA",
-          difficulty: fp.difficulty || "Medium",
-          link: fp.link || "",
-          code: sub?.code,
-          submissionLink: sub?.link,
-        });
-      }
-    }
-
-    // 4. Any other entries in codeSubmissions map
-    Object.entries(codeSubmissions).forEach(([name, sub]) => {
-      if (name && !seen.has(name) && sub?.code) {
-        seen.add(name);
-        list.push({
-          name,
-          platform: "DSA",
-          difficulty: "Medium",
-          link: sub.link || "",
-          code: sub.code,
-          submissionLink: sub.link,
-        });
-      }
-    });
-
-    return list;
-  }, [completedProblems, days, pbCompleted, codeSubmissions]);
-
   const platformOptions = useMemo(
-    () => ["All", ...Array.from(new Set(allCompletedProblems.map((p) => p.platform))).sort()],
-    [allCompletedProblems]
+    () => ["All", ...Array.from(new Set(completedProblems.map((p) => p.platform))).sort()],
+    [completedProblems]
   );
 
   const filteredCompleted = useMemo(
     () =>
       platformFilter === "All"
-        ? allCompletedProblems
-        : allCompletedProblems.filter((p) => p.platform === platformFilter),
-    [allCompletedProblems, platformFilter]
+        ? completedProblems
+        : completedProblems.filter((p) => p.platform === platformFilter),
+    [completedProblems, platformFilter]
   );
 
-  const nameToDisplay =
-    displayName ||
-    username ||
-    (identifier && !identifier.startsWith("user_") && identifier.length < 30 ? identifier : "") ||
-    "Developer";
+  const initials = (displayName || "?")[0]?.toUpperCase() ?? "?";
 
-  const initials = (nameToDisplay || "?")[0]?.toUpperCase() ?? "?";
-  const totalSolvedCount = Math.max(publicStats.totalSolved, allCompletedProblems.length);
-
-  // Badges & streak calculation from public days and codeSubmissions
+  // Badges & streak calculation from public days
   const badges = useMemo(() => computeBadges(days), [days]);
-  const streakCount = useMemo(() => currentStreak(days, codeSubmissions), [days, codeSubmissions]);
+  const streakCount = useMemo(() => currentStreak(days), [days]);
 
   // Heatmap calculations — grouped by the date each problem was actually
   // marked done (not the day it was originally assigned to), so a backlog
@@ -298,54 +203,37 @@ export default function PublicProfilePage() {
       <main className="mx-auto max-w-3xl px-4 py-8 space-y-6">
 
         {/* ── GitHub / LeetCode Style Profile Hero Card ── */}
-        <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-lg transition-all">
-          <div className="h-28 sm:h-36 w-full bg-gradient-to-r from-primary/30 via-purple-500/15 to-emerald-500/20 border-b border-border/40 relative overflow-hidden">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="h-24 sm:h-32 w-full bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20 border-b border-border/40 relative overflow-hidden">
             {bannerURL && (
               <img src={bannerURL} alt="Profile cover banner" className="absolute inset-0 size-full object-cover" />
             )}
-            <div className="absolute right-3 top-3 sm:right-5 sm:top-4 flex flex-wrap justify-end items-center gap-2 z-10 max-w-[85%]">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-background/90 backdrop-blur px-3 py-1 text-xs font-bold text-foreground border border-border/60 shadow-md">
-                <Flame className="size-3.5 text-orange-500 animate-pulse" />
+            <div className="absolute right-2 top-2 sm:right-4 sm:top-3 flex flex-wrap justify-end items-center gap-1.5 sm:gap-2 z-10 max-w-[85%]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-foreground border border-border/50 shadow-sm">
+                <Flame className="size-3.5 text-orange-500" />
                 {streakCount} Day Streak
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-background/90 backdrop-blur px-3 py-1 text-xs font-bold text-primary border border-border/60 shadow-md">
-                <Sparkles className="size-3.5 text-primary" />
-                {totalSolvedCount} Solved
+              <span className="inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-primary border border-border/50 shadow-sm">
+                <Sparkles className="size-3.5" />
+                {publicStats.totalSolved} Solved
               </span>
             </div>
           </div>
 
-          <div className="px-5 sm:px-8 pb-6 pt-0">
-            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-end gap-4 sm:gap-6 -mt-12 sm:-mt-14 mb-2">
-              <div className="size-24 sm:size-28 shrink-0 overflow-hidden rounded-full border-4 border-card bg-muted shadow-2xl ring-4 ring-primary/20 flex items-center justify-center z-10 transition-transform duration-200 hover:scale-105">
+          <div className="px-4 sm:px-6 pb-6 pt-0">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-end gap-4 sm:gap-5 -mt-10 sm:-mt-12 mb-3">
+              <div className="size-20 sm:size-24 shrink-0 overflow-hidden rounded-full border-4 border-card bg-muted shadow-lg flex items-center justify-center z-10">
                 {photoURL ? (
-                  <img src={photoURL} alt={`${nameToDisplay} avatar`} className="size-full object-cover" />
+                  <img src={photoURL} alt={`${displayName} avatar`} className="size-full object-cover" />
                 ) : (
-                  <span className="text-3xl sm:text-5xl font-black text-primary drop-shadow-sm">{initials}</span>
+                  <span className="text-3xl sm:text-4xl font-bold text-primary">{initials}</span>
                 )}
               </div>
 
-              <div className="flex-1 min-w-0 pt-1 sm:pt-2 space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl sm:text-3xl font-black tracking-tight text-foreground truncate drop-shadow-sm">
-                    {nameToDisplay}
-                  </h1>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary border border-primary/20 shadow-sm shrink-0">
-                    <BadgeCheck className="size-3.5 text-primary" /> Developer Profile
-                  </span>
-                </div>
-                {username && (
-                  <div>
-                    <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-primary bg-primary/10 px-2.5 py-0.5 rounded-lg border border-primary/20 shadow-sm">
-                      @{username}
-                    </span>
-                  </div>
-                )}
-                {bio && (
-                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-medium line-clamp-2 max-w-xl">
-                    {bio}
-                  </p>
-                )}
+              <div className="flex-1 min-w-0 pt-1 sm:pt-2">
+                <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">{displayName || "Anonymous Coder"}</h1>
+                {username && <p className="text-xs font-mono font-medium text-primary mt-0.5 truncate">@{username}</p>}
+                {bio && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{bio}</p>}
               </div>
             </div>
           </div>
@@ -434,7 +322,7 @@ export default function PublicProfilePage() {
 
           <div className="mb-4 flex items-end gap-2">
             <span className="font-display text-5xl font-bold tabular-nums text-primary">
-              {totalSolvedCount}
+              {publicStats.totalSolved}
             </span>
             <span className="mb-1 text-sm text-muted-foreground">problems solved</span>
           </div>
@@ -463,7 +351,7 @@ export default function PublicProfilePage() {
         </section>
 
         {/* ── Completed Problems ── */}
-        {allCompletedProblems.length > 0 && (
+        {completedProblems.length > 0 && (
           <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-display text-lg font-semibold">
@@ -491,9 +379,9 @@ export default function PublicProfilePage() {
             </div>
 
             <div className="divide-y divide-border">
-              {filteredCompleted.map((p, idx) => (
+              {filteredCompleted.map((p) => (
                 <div
-                  key={`${p.name}|${idx}`}
+                  key={`${p.name}|${p.link}`}
                   className="flex items-center gap-3 py-2.5 hover:bg-muted/30 px-2 rounded-lg cursor-pointer transition-colors"
                   onClick={() => setSelectedProb(p)}
                 >
@@ -519,6 +407,16 @@ export default function PublicProfilePage() {
                   >
                     {p.difficulty}
                   </span>
+                  <a
+                    href={p.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Open ${p.name}`}
+                    className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <ExternalLink className="size-3.5" />
+                  </a>
                 </div>
               ))}
             </div>
@@ -534,7 +432,7 @@ export default function PublicProfilePage() {
             problemName={selectedProb.name}
             existingSubmission={
               selectedProb.code
-                ? { code: selectedProb.code, link: "", submittedAt: "" }
+                ? { code: selectedProb.code, link: selectedProb.submissionLink ?? "", submittedAt: "" }
                 : undefined
             }
             readOnly={true}

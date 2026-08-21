@@ -12,9 +12,9 @@ export interface Contest {
   url: string;
 }
 
-// Codeforces should only surface real DSA / competitive-programming rounds matching the 5 allowed divisions:
-// Div. 4, Div. 3, Educational Codeforces Round, Div. 2, Div. 1
-const CF_ALLOWED_REGEX = /div\.\s*[1-4]|div\s*[1-4]|educational/i;
+// Codeforces should only surface real DSA / competitive-programming rounds —
+// exclude training camps, onsite practice sessions, and other non-CP listings
+// that occasionally show up in the public contest list.
 const CF_NON_CP_REGEX = /training|marathon|onsite|hiring\s*test|welcome\s*round/i;
 
 // ─── CodeChef Fetcher ──────────────────────────────────────────────────────────
@@ -91,10 +91,8 @@ async function fetchCodeforces(): Promise<Contest[]> {
       .filter((c: any) => {
         const startMs = c.startTimeSeconds * 1000;
         const inWindow = c.phase !== "FINISHED" || (now - startMs < windowMs);
-        const name = c.name || "";
-        const isCoreCp = !CF_NON_CP_REGEX.test(name);
-        const isAllowedDiv = CF_ALLOWED_REGEX.test(name);
-        return inWindow && isCoreCp && isAllowedDiv;
+        const isCoreCp = !CF_NON_CP_REGEX.test(c.name || "");
+        return inWindow && isCoreCp;
       })
       .map((c: any) => ({
         id: `cf-${c.id}`,

@@ -12,6 +12,7 @@ import { hasExistingPlan, seedPlan, claimUsername } from '@/lib/db'
 import { saveSettings } from '@/lib/settings'
 import { QuoteLoader } from '@/components/QuoteLoader'
 import { OnboardingModal } from '@/components/OnboardingModal'
+import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import type { DailyCounts } from '@/lib/plan'
 
 
@@ -23,6 +24,10 @@ export default function AuthenticatedLayout({
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // Auto-logout only after 7 days of no visits at all. A normal user who
+  // just keeps clicking "logout" manually (or never does) is unaffected.
+  useInactivityLogout(!!user)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {

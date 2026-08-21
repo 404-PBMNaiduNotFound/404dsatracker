@@ -193,11 +193,10 @@ function ProgressPage() {
       </div>
 
       {/* Upgrade 4 — weekly snapshot + charts */}
-      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="This week solved" value={String(week.problemsSolved + stats.pbDone)} />
         <Stat label="Time invested (7d)" value={`${Math.round(week.minutesSpent / 60)}h`} />
         <Stat label="Active days (7d)" value={`${week.daysActive}/7`} />
-        <Stat label="Contests Attended" value={String(contestsAttended)} />
         <Stat label="Longest streak" value={`${streaks.longest} days`} />
       </div>
 

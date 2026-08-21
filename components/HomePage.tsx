@@ -451,7 +451,7 @@ function ProblemsMock() {
         </div>
       ))}
       <div className="rounded-lg border border-border bg-muted p-2 text-[10px] text-muted-foreground">
-        Sheets: Core 404 Roadmap · DSA 500 Practice Set
+        Sheets: Core 404 Roadmap · Practice 404 Sheet
       </div>
     </div>
   );

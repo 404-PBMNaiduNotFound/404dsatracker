@@ -66,17 +66,12 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
-      match /contestMeta/{docId} {
-        allow read, write: if isOwner(uid);
-      }
-
       match /revisionEvents/{eventId} {
         allow read, write: if isOwner(uid);
       }
 
       match /settings/{docId} {
-        allow read: if true;
-        allow write: if isOwner(uid);
+        allow read, write: if isOwner(uid);
       }
 
       // Achievements are informational badges. The app currently computes
@@ -98,11 +93,6 @@ service cloud.firestore {
 
       // Topic reminders stored per user.
       match /reminders/{reminderId} {
-        allow read, write: if isOwner(uid);
-      }
-
-      // Wildcard fallback: allow the account owner read and write to any user subcollection
-      match /{allSubcollections=**} {
         allow read, write: if isOwner(uid);
       }
     }
