@@ -7,9 +7,19 @@
 // Top-level import is safe only in other .server.ts modules; route files and
 // *.functions.ts ship to the client bundle, so load it lazily there:
 //   const { getAdminDb } = await import("@/integrations/firebase/admin.server");
+//
+// NOTE: `firebase-admin/auth` is intentionally NOT imported at the top of
+// this file. Its dependency chain (google-auth-library -> jwks-rsa -> jose)
+// includes `jose`, which ships as pure ESM with no CommonJS build. Any route
+// that imports this file — even just for getAdminDb()/Firestore — would
+// otherwise drag in that broken require() chain and crash with
+// ERR_REQUIRE_ESM at runtime, regardless of bundler settings. Loading
+// firebase-admin/auth lazily (only inside getAdminAuth/verifyIdToken, which
+// nothing calls unless actually needed) keeps routes that only touch
+// Firestore/Messaging (e.g. the reminders cron route) completely unaffected.
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import type { Auth } from "firebase-admin/auth";
 
 function createAdminApp(): App {
   const existing = getApps()[0];
@@ -38,8 +48,11 @@ function createAdminApp(): App {
 let _adminAuth: Auth | undefined;
 let _adminDb: Firestore | undefined;
 
-export function getAdminAuth(): Auth {
-  if (!_adminAuth) _adminAuth = getAuth(createAdminApp());
+export async function getAdminAuth(): Promise<Auth> {
+  if (!_adminAuth) {
+    const { getAuth } = await import("firebase-admin/auth");
+    _adminAuth = getAuth(createAdminApp());
+  }
   return _adminAuth;
 }
 
@@ -50,7 +63,8 @@ export function getAdminDb(): Firestore {
 
 /** Verifies a Firebase ID token and returns the decoded claims (throws if invalid/expired). */
 export async function verifyIdToken(idToken: string) {
-  return getAdminAuth().verifyIdToken(idToken);
+  const auth = await getAdminAuth();
+  return auth.verifyIdToken(idToken);
 }
 
 /**
