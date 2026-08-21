@@ -63,42 +63,54 @@ export function ReminderRunner() {
       const today = todayIso();
 
       // --- 1. Check Revision Tab Topic Reminders (Email & Browser) ---
+      // Collected and shown as ONE combined notification instead of one
+      // per overdue reminder — firing N separate notifications the moment
+      // the app opens (when N reminders piled up while it was closed) is
+      // exactly the "notifications coming continuously / all at once" bug.
       try {
         const topicReminders = await fetchTopicReminders(user?.uid);
         const targetEmail = user?.email || auth.currentUser?.email || null;
 
-        for (const rem of topicReminders) {
-          if (rem.triggered) continue;
-
+        const dueReminders = topicReminders.filter((rem) => {
+          if (rem.triggered) return false;
           const remTimeMinutes = timeToMinutes(rem.time);
-          const isDue = rem.date < today || (rem.date === today && nowMinutes >= remTimeMinutes);
+          return rem.date < today || (rem.date === today && nowMinutes >= remTimeMinutes);
+        });
 
-          if (isDue) {
-            void showLocalReminder(
-              `🔔 Revision Reminder: ${rem.topic}`,
-              rem.note ? rem.note : `Time to revise your scheduled topic: ${rem.topic}`
-            );
+        if (dueReminders.length === 1) {
+          const rem = dueReminders[0];
+          void showLocalReminder(
+            `🔔 Revision Reminder: ${rem.topic}`,
+            rem.note ? rem.note : `Time to revise your scheduled topic: ${rem.topic}`
+          );
+        } else if (dueReminders.length > 1) {
+          const topics = dueReminders.map((r) => r.topic).join(", ");
+          void showLocalReminder(
+            `🔔 ${dueReminders.length} Revision Reminders`,
+            `Pending topics: ${topics}`
+          );
+        }
 
-            if (targetEmail && settings.emailEnabled) {
-              try {
-                await fetch("/api/send-email", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    email: targetEmail,
-                    subject: `🔔 DSA Topic Revision Reminder: ${rem.topic}`,
-                    message: `Hello!\n\nThis is your scheduled reminder to revise the topic "${rem.topic}".\n${
-                      rem.note ? `Note: ${rem.note}\n\n` : ""
-                    }Log in to DSA⁴⁰⁴ to complete your practice!\n\n- DSA⁴⁰⁴ Team`,
-                  }),
-                });
-              } catch (err) {
-                console.error("Failed to send topic reminder email:", err);
-              }
+        for (const rem of dueReminders) {
+          if (targetEmail && settings.emailEnabled) {
+            try {
+              await fetch("/api/send-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  email: targetEmail,
+                  subject: `🔔 DSA Topic Revision Reminder: ${rem.topic}`,
+                  message: `Hello!\n\nThis is your scheduled reminder to revise the topic "${rem.topic}".\n${
+                    rem.note ? `Note: ${rem.note}\n\n` : ""
+                  }Log in to DSA⁴⁰⁴ to complete your practice!\n\n- DSA⁴⁰⁴ Team`,
+                }),
+              });
+            } catch (err) {
+              console.error("Failed to send topic reminder email:", err);
             }
-
-            await markTopicReminderTriggered(user?.uid, rem.id);
           }
+
+          await markTopicReminderTriggered(user?.uid, rem.id);
         }
       } catch (err) {
         console.error("Error processing topic reminders:", err);
@@ -107,8 +119,17 @@ export function ReminderRunner() {
       if (!settings.pushEnabled || settings.paused) return;
 
       // --- 2. Morning Browser Notification (Topic & Problems) ---
+      // Only fire within a reasonable window after morningReminderTime (4h).
+      // Without this, opening the app for the first time that day late in
+      // the evening still fires a "Good morning" nudge — stale and, combined
+      // with the evening reminder + daily quote also becoming due in that
+      // same tick, feels like a burst of unrelated notifications at once.
       if (settings.morningReminderEnabled) {
-        if (nowMinutes >= timeToMinutes(settings.morningReminderTime)) {
+        const morningTargetMinutes = timeToMinutes(settings.morningReminderTime);
+        const minutesPastMorning = nowMinutes - morningTargetMinutes;
+        const withinMorningWindow = minutesPastMorning >= 0 && minutesPastMorning <= 240;
+
+        if (withinMorningWindow) {
           const morningStorageVal = `${today}-${settings.morningReminderTime}`;
           if (window.localStorage.getItem(STORAGE_KEY_MORNING) !== morningStorageVal) {
             const todayPlanDay = daysRef.current.find((d) => d.date === today && !d.skipped);
@@ -117,7 +138,6 @@ export function ReminderRunner() {
               ? todayPlanDay.problems.filter((p) => !p.done).length
               : 0;
 
-            window.localStorage.getItem(STORAGE_KEY_MORNING);
             window.localStorage.setItem(STORAGE_KEY_MORNING, morningStorageVal);
 
             void showLocalReminder(
@@ -127,11 +147,19 @@ export function ReminderRunner() {
                 : `Good morning! Time to start practicing ${topicName}.`
             );
           }
+        } else if (minutesPastMorning > 240) {
+          // Too late in the day for a "morning" nudge to make sense — mark
+          // it as handled for today so it doesn't try again once it's night.
+          const morningStorageVal = `${today}-${settings.morningReminderTime}`;
+          if (window.localStorage.getItem(STORAGE_KEY_MORNING) !== morningStorageVal) {
+            window.localStorage.setItem(STORAGE_KEY_MORNING, morningStorageVal);
+          }
         }
       }
 
       // --- 3. Contest Starts in 1 Hour Browser Notification ---
       if (settings.contestReminderEnabled && contests && contests.length > 0) {
+        let contestDelay = 0;
         for (const contest of contests) {
           const diffMs = contest.startMs - nowMs;
           // Check if contest is starting between 50 and 70 minutes from now (~1 hour)
@@ -139,10 +167,14 @@ export function ReminderRunner() {
             const contestStorageKey = `${STORAGE_KEY_CONTEST}:${contest.id}`;
             if (!window.localStorage.getItem(contestStorageKey)) {
               window.localStorage.setItem(contestStorageKey, "true");
-              void showLocalReminder(
-                `🏆 Contest Starting Soon!`,
-                `"${contest.title}" on ${contest.platform} starts in 1 hour!`
-              );
+              const delay = contestDelay;
+              contestDelay += 4000;
+              setTimeout(() => {
+                void showLocalReminder(
+                  `🏆 Contest Starting Soon!`,
+                  `"${contest.title}" on ${contest.platform} starts in 1 hour!`
+                );
+              }, delay);
             }
           }
           // Check if contest is starting between 5 and 15 minutes from now (~10 mins)
@@ -150,10 +182,14 @@ export function ReminderRunner() {
             const contestStorageKey10 = `${STORAGE_KEY_CONTEST}_10m:${contest.id}`;
             if (!window.localStorage.getItem(contestStorageKey10)) {
               window.localStorage.setItem(contestStorageKey10, "true");
-              void showLocalReminder(
-                `🏆 Contest in 10 mins!`,
-                `"${contest.title}" on ${contest.platform} is starting soon. Don't miss it!`
-              );
+              const delay = contestDelay;
+              contestDelay += 4000;
+              setTimeout(() => {
+                void showLocalReminder(
+                  `🏆 Contest in 10 mins!`,
+                  `"${contest.title}" on ${contest.platform} is starting soon. Don't miss it!`
+                );
+              }, delay);
             }
           }
         }
@@ -163,10 +199,11 @@ export function ReminderRunner() {
       if (window.localStorage.getItem(STORAGE_KEY_QUOTE) !== today) {
         window.localStorage.setItem(STORAGE_KEY_QUOTE, today);
         const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
-        // Add a slight delay so it doesn't fire exactly on page load jarringly
+        // Staggered well past the morning/evening notifications above so
+        // multiple due reminders don't all pop in the same instant.
         setTimeout(() => {
           void showLocalReminder("Daily Motivation 💡", randomQuote);
-        }, 3000);
+        }, 8000);
       }
 
       // --- 5. Evening Daily Backlog Nudge ---
@@ -190,12 +227,14 @@ export function ReminderRunner() {
       if (pendingCount === 0) return;
 
       window.localStorage.setItem(STORAGE_KEY_EVENING, storageVal);
-      void showLocalReminder(
-        "DSA⁴⁰⁴ Reminder",
-        pendingToday > 0 
-          ? `You have ${pendingToday} problem${pendingToday !== 1 ? "s" : ""} left today. Complete them to save your streak!`
-          : `You have ${pendingCount} problem${pendingCount !== 1 ? "s" : ""} waiting to be completed in your backlog.`
-      );
+      setTimeout(() => {
+        void showLocalReminder(
+          "DSA⁴⁰⁴ Reminder",
+          pendingToday > 0 
+            ? `You have ${pendingToday} problem${pendingToday !== 1 ? "s" : ""} left today. Complete them to save your streak!`
+            : `You have ${pendingCount} problem${pendingCount !== 1 ? "s" : ""} waiting to be completed in your backlog.`
+        );
+      }, 12000);
     };
 
     void tick();
@@ -217,4 +256,3 @@ export function ReminderRunner() {
 
   return null;
 }
-
