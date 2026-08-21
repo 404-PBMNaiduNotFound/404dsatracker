@@ -16,7 +16,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useContests } from "@/hooks/useContests";
 import { todayIso } from "@/lib/plan";
-import { registerReminderWorker, showLocalReminder, timeToMinutes } from "@/lib/push";
+import { registerReminderWorker, showLocalReminder, subscribeDevice, timeToMinutes } from "@/lib/push";
 import { fetchTopicReminders, markTopicReminderTriggered } from "@/lib/reminders";
 
 const STORAGE_KEY_EVENING = "dsa:last-local-reminder";
@@ -47,6 +47,13 @@ export function ReminderRunner() {
     if (typeof window === "undefined") return;
     if ("Notification" in window && Notification.permission === "granted") {
       void registerReminderWorker();
+      // Re-assert the FCM token every load (not just on first toggle-on).
+      // Tokens can expire/rotate, and returning users on a new device or
+      // browser reinstall previously never got re-subscribed, so their
+      // background push silently died until they revisited Settings.
+      if (user?.uid && settings.pushEnabled) {
+        void subscribeDevice(user.uid);
+      }
     }
 
     const tick = async () => {
