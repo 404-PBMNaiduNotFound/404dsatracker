@@ -105,7 +105,24 @@ export async function loadSettings(userId: string): Promise<UserSettings> {
     await setDoc(ref, { ...settingsToFields(seeded), updatedAt: new Date().toISOString() });
     return seeded;
   }
-  return fieldsToSettings(snap.data() as Fields);
+
+  const raw = snap.data() as Fields;
+
+  // Backfill missing `timezone` for accounts created before this field
+  // existed. Without this, the value is only ever defaulted in-memory for
+  // display — the Firestore doc itself stays without it, so the server-side
+  // reminder cron (which has no other way to know the user's local time)
+  // silently falls back to UTC and reminder-time comparisons are wrong by
+  // the user's UTC offset (e.g. reminders set for 9:30 PM IST never fire,
+  // since the server thinks 9:30 PM UTC hasn't happened yet).
+  if (!raw.timezone) {
+    const detectedTz =
+      typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+    void setDoc(ref, { timezone: detectedTz, updatedAt: new Date().toISOString() }, { merge: true });
+    raw.timezone = detectedTz;
+  }
+
+  return fieldsToSettings(raw);
 }
 
 export async function saveSettings(userId: string, patch: Partial<UserSettings>) {
