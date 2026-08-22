@@ -1,0 +1,30 @@
+{
+  "name": "404 Distractions. 1 Goal: DSA. 🔥",
+  "short_name": "DSA⁴⁰⁴",
+  "description": "Master DSA with Striver A2Z personalised comprehensive plan",
+  "id": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2ead8",
+  "theme_color": "#c48a2f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/app-icon-circular.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/app-icon-circular.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "lang": "en"
+}
