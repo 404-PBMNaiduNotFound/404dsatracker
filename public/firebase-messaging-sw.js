@@ -1,14 +1,14 @@
-/* FCM background service worker for DSA404 background push notifications */
+/* FCM background service worker for dsatracker background push notifications */
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "AIzaSyA5IQxOyoqWUTHWF0UCZPHyYJ9Giv1_-8Q",
-  authDomain: "tracker-3751e.firebaseapp.com",
-  projectId: "tracker-3751e",
-  storageBucket: "tracker-3751e.firebasestorage.app",
-  messagingSenderId: "662558145403",
-  appId: "1:662558145403:web:b624b59a5a0997560d1bde",
+  apiKey: "AIzaSyB4hcNj9lISsWG5s-F3JKNfBbM669SY4eI", // Replace with your actual dsatracker web API key
+  authDomain: "dsatracker-67ece.firebaseapp.com",
+  projectId: "dsatracker-67ece",
+  storageBucket: "dsatracker-67ece.firebasestorage.app",
+  messagingSenderId: "865216700488", // Correct project number for dsatracker
+  appId: "1:865216700488:web:f7e7fd9b0c0ab5524ab87d", // Replace with your dsatracker Web App ID
 });
 
 const messaging = firebase.messaging();
@@ -22,7 +22,7 @@ self.addEventListener("activate", (event) => {
 });
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title ?? payload.data?.title ?? "DSA⁴⁰⁴";
+  const title = payload.notification?.title ?? payload.data?.title ?? "DSA Tracker";
   const body =
     payload.notification?.body ?? payload.data?.body ?? "You still have problems left for today.";
   self.registration.showNotification(title, {
@@ -37,3 +37,4 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   event.waitUntil(self.clients.openWindow("/today"));
 });
+
